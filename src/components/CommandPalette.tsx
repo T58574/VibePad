@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Code, FileText, ShieldCheck } from 'lucide-react';
+import { Search, Code, FileText, ShieldCheck, Activity, Layers, Share2 } from 'lucide-react';
 import { DevTools } from '../utils/devTools';
 
 interface CommandPaletteProps {
@@ -8,6 +8,9 @@ interface CommandPaletteProps {
   onToggleMarkdown: () => void;
   onToggleDiff: () => void;
   onRegisterWindows: () => void;
+  onOpenProductivity: () => void;
+  onOpenSnippetVault: () => void;
+  onOpenSessionExport: () => void;
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
@@ -16,11 +19,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onToggleMarkdown,
   onToggleDiff,
   onRegisterWindows,
+  onOpenProductivity,
+  onOpenSnippetVault,
+  onOpenSessionExport,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const actions = [
+    { id: 'saas-analytics', name: 'Open Vibe Productivity Dashboard (Ctrl+Shift+S)', icon: Activity, action: onOpenProductivity },
+    { id: 'saas-snippets', name: 'Open SaaS Snippet Vault & Templates (Ctrl+Shift+V)', icon: Layers, action: onOpenSnippetVault },
+    { id: 'saas-session', name: 'Cloud Sync & Session Export/Import', icon: Share2, action: onOpenSessionExport },
     { id: 'json-prettify', name: 'Format JSON (Prettify)', icon: Code, action: () => onTransformContent(DevTools.prettifyJson) },
     { id: 'json-minify', name: 'Minify JSON', icon: Code, action: () => onTransformContent(DevTools.minifyJson) },
     { id: 'clean-logs', name: 'Clean Logs (Strip ANSI & Timestamps)', icon: FileText, action: () => onTransformContent(DevTools.cleanLogs) },

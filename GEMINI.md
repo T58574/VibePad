@@ -15,6 +15,7 @@
 
 - **Core Editor Engine**: CodeMirror 6 (виртуализированный скроллинг для гигантских логов, мультикурсоры, подсветка синтаксиса).
 - **UI Framework**: React 18 + Vite + Tailwind CSS (Glassmorphism dark theme в стиле Sublime / Linear).
+- **Automated Testing Suite**: Vitest + JSDOM (`npm run test`), 28/28 проходящих автотестов для утилит и SaaS функционала.
 - **Resilience Layer**: React `ErrorBoundary` для перехвата рантайм-ошибок с дашбордом аварийного восстановления сессий без потери файлов.
 - **Markdown Engine**: `markdown-it` + `highlight.js` + `katex` (переключение по `Ctrl+E`).
 - **Native Host & Launcher**: Edge WebView2 host packaged via Neutralino.js / Node SEA into **`VibePad.exe`**.
@@ -26,6 +27,10 @@
   - Запись во временные файлы `.vibetmp` с последующим `rename` (атомарное сохранение против повреждения файлов при сбоях).
   - Лимит 50MB Body Guard Limit с отдачей `413 Payload Too Large`.
   - Автоподбор порта при конфликтах `EADDRINUSE`.
+- **SaaS Features Module (`saasFeatures.ts`)**:
+  - **Vibe Productivity & Telemetry Dashboard (`Ctrl+Shift+S`)**: Метрики в реальном времени, RAM footprint, Vibe Index Score, статистика языков и строк.
+  - **SaaS Snippet Vault & Templates (`Ctrl+Shift+V`)**: Встроенный каталог готовых шаблонов (Docker Compose, Nginx, PostgreSQL, OpenAPI 3.0, Production .env).
+  - **Cloud Sync & Session Transfer (`Ctrl+Shift+E` / Header)**: 1-click экспорт/импорт всей сессии в JSON и генерация GitHub Gist Share payload.
 - **Windows Explorer Integration**: Регистрация в реестре Windows (`HKCU\Software\Classes`):
   - Контекстное меню для любых файлов: **"Открыть в VibePad"** с иконкой приложения.
   - Регистрация в системном диалоге **"Открыть с помощью..."** (Open With).
@@ -41,7 +46,7 @@
 4. **Sublime Multi-Cursor & Search**: `Ctrl+D` (выделение совпадений), `Alt+Click` (мультикурсоры), Regex Search & Replace (`Ctrl+F` / `Ctrl+H`).
 5. **Live Log Tail & Smart Filter (`Ctrl+Shift+F`)**:
    - Слежение за авто-обновлением лог-файлов в реальном времени.
-   - Мгновенный фильтр строк по ключам (`[ERROR]`, `[WARN]`, `[INFO]`).
+   - Мгновенный memoized фильтр строк по ключам (`[ERROR]`, `[WARN]`, `[INFO]`).
 6. **Split-View File Diff (`Ctrl+Shift+D`)**: 2-панельное сравнение файлов или выделенного текста.
 7. **Smart Context Floating Bar**: Авто-детекция выделенного текста (Unix Timestamp -> дата, Base64 -> расшифровка, JSON -> форматирование, `Ctrl+K` -> AI).
 8. **Hot-Exit & QuotaExceeded Safe Session**: Автосохранение открытых вкладок и неименованных черновиков (`Untitled-1`). Защита `localStorage` от переполнения квоты при больших файлах.
@@ -55,7 +60,7 @@
 ```
 vibe-pad/
 ├── GEMINI.md                         # Документ памяти сессий и архитектуры
-├── .gitignore                        # Исключения node_modules, dist, temp артефактов
+├── vitest.config.ts                  # Конфигурация тестовой среды Vitest
 ├── package.json                      # Конфигурация зависимостей и npm скриптов
 ├── vite.config.ts                    # Конфиг сборщика Vite
 ├── tailwind.config.js                # Стили и Glassmorphism токены
@@ -77,11 +82,19 @@ vibe-pad/
     │   ├── AntigravityPrompt.tsx     # Floating AI Sidebar с обработкой ошибок
     │   ├── CommandPalette.tsx        # Fuzzy finder (Ctrl+P) с клавиатурной навигацией
     │   ├── QuickContextBar.tsx       # Всплывающая плашка на выделение (Timestamp/Base64/JSON)
-    │   └── LogFilterBar.tsx          # Live Log Tail & Smart Filter
+    │   ├── LogFilterBar.tsx          # Live Log Tail & Smart Filter
+    │   ├── SaaSProductivityModal.tsx # Vibe Productivity & Telemetry Dashboard (Ctrl+Shift+S)
+    │   ├── SaaSSnippetVaultModal.tsx # SaaS Templates & Snippets Vault (Ctrl+Shift+V)
+    │   └── SaaSSessionExportModal.tsx# Cloud Sync & Session Export/Import (Ctrl+Shift+E)
     └── utils/
         ├── ipcBridge.ts              # Гибридный IPC мост (Neutralino + HTTP Server + Shell Escape)
+        ├── ipcBridge.test.ts         # Автотесты IPC моста и защиты CLI
         ├── encodings.ts              # Детекция BOM, UTF-8 и Win-1251
-        └── devTools.ts               # Safe Unicode Base64, JWT, JSON, Log Cleaner утилиты
+        ├── encodings.test.ts         # Автотесты конвертации кодировок и символов переноса
+        ├── devTools.ts               # Safe Unicode Base64, JWT, JSON, Log Cleaner утилиты
+        ├── devTools.test.ts          # Автотесты DevTools трансформеров
+        ├── saasFeatures.ts           # SaaS модуль экспорта сессий, метрик и шаблонов
+        └── saasFeatures.test.ts      # Автотесты SaaS модуля
 ```
 
 ---
@@ -95,12 +108,15 @@ npm install
 # 2. Запуск в режиме разработки
 npm run dev
 
-# 3. Продашкен сборка веб-бандла
+# 3. Запуск suite автотестов (Vitest)
+npm run test
+
+# 4. Продашкен сборка веб-бандла
 npm run build
 
-# 4. Сборка готового исполняемого файла VibePad.exe (с синхронизацией resources.neu)
+# 5. Сборка готового исполняемого файла VibePad.exe (с синхронизацией resources.neu)
 npm run build:exe
 
-# 5. Интеграция в контекстное меню Windows Explorer
+# 6. Интеграция в контекстное меню Windows Explorer
 npm run register
 ```

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FileCode,
   FileText,
@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Save,
+  Activity,
+  Layers,
+  Share2,
 } from 'lucide-react';
 import { Editor } from './components/Editor';
 import { MarkdownViewer } from './components/MarkdownViewer';
@@ -20,6 +23,9 @@ import { AntigravityPrompt } from './components/AntigravityPrompt';
 import { CommandPalette } from './components/CommandPalette';
 import { QuickContextBar } from './components/QuickContextBar';
 import { LogFilterBar } from './components/LogFilterBar';
+import { SaaSProductivityModal } from './components/SaaSProductivityModal';
+import { SaaSSnippetVaultModal } from './components/SaaSSnippetVaultModal';
+import { SaaSSessionExportModal } from './components/SaaSSessionExportModal';
 import { FileItem, IPCBridge } from './utils/ipcBridge';
 import { convertLineEnding } from './utils/encodings';
 
@@ -56,10 +62,10 @@ export default function App() {
         id: `tab-${Date.now()}-welcome`,
         name: 'welcome.log',
         path: 'welcome.log',
-        content: `[${new Date().toISOString()}] [INFO] VibePad Ultra-Lightweight Editor initialized.
+        content: `[${new Date().toISOString()}] [INFO] VibePad SaaS Ultra-Lightweight Editor initialized.
 [INFO] CodeMirror 6 engine running @ ~30MB RAM.
 [SUCCESS] Antigravity AI pipe ready (Ctrl+K).
-[TIP] Press Ctrl+P for Command Palette or Ctrl+E for Markdown toggle.`,
+[TIP] Press Ctrl+P for Command Palette, Ctrl+Shift+S for Analytics, or Ctrl+Shift+V for Snippet Vault.`,
         encoding: 'UTF-8',
         lineEnding: 'LF',
         isDirty: false,
@@ -75,6 +81,11 @@ export default function App() {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [selection, setSelection] = useState('');
   const [selectionCoords, setSelectionCoords] = useState<{ x: number; y: number } | null>(null);
+
+  // SaaS Modals State
+  const [isProductivityModalOpen, setIsProductivityModalOpen] = useState(false);
+  const [isSnippetVaultOpen, setIsSnippetVaultOpen] = useState(false);
+  const [isSessionExportOpen, setIsSessionExportOpen] = useState(false);
 
   // Log Tail & Filter State
   const [filterQuery, setFilterQuery] = useState('');
@@ -96,7 +107,6 @@ export default function App() {
   // Hot-Exit Safe Session Preservation (QuotaExceeded Protection)
   useEffect(() => {
     try {
-      // Strips large contents if total session size exceeds safe threshold
       const lightweightTabs = tabs.map((t) => ({
         ...t,
         content: t.content.length > 500000 ? t.content.slice(0, 500000) : t.content,
@@ -131,17 +141,22 @@ export default function App() {
         showToast('error', `Ошибка загрузки начального файла: ${err.message}`);
       }
     });
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [showToast]);
 
   const activeFileIndex = tabs.findIndex((t) => t.id === activeTabId);
   const activeFile = tabs[activeFileIndex >= 0 ? activeFileIndex : 0] || tabs[0];
 
-  const handleUpdateContent = useCallback((newContent: string) => {
-    setTabs((prev) =>
-      prev.map((t) => (t.id === activeTabId ? { ...t, content: newContent, isDirty: true } : t))
-    );
-  }, [activeTabId]);
+  const handleUpdateContent = useCallback(
+    (newContent: string) => {
+      setTabs((prev) =>
+        prev.map((t) => (t.id === activeTabId ? { ...t, content: newContent, isDirty: true } : t))
+      );
+    },
+    [activeTabId]
+  );
 
   const handleSaveFile = async () => {
     if (!activeFile) return;
@@ -163,18 +178,20 @@ export default function App() {
       }
     } catch (e: any) {
       showToast('error', `Исключение при сохранении: ${e.message}`);
-    } finally {
+    } fontFinally: {
       setIsSaving(false);
     }
   };
 
-  const handleAddTab = () => {
+  const handleAddTab = (name?: string, content?: string) => {
     const tabNum = tabs.length + 1;
+    const tabName = name || `Untitled-${tabNum}.txt`;
+    const tabContent = content !== undefined ? content : '';
     const newTab: FileItem = {
       id: `tab-${Date.now()}-${tabNum}`,
-      name: `Untitled-${tabNum}.txt`,
-      path: `Untitled-${tabNum}.txt`,
-      content: '',
+      name: tabName,
+      path: tabName,
+      content: tabContent,
       encoding: 'UTF-8',
       lineEnding: 'LF',
       isDirty: true,
@@ -189,7 +206,9 @@ export default function App() {
 
     const targetTab = tabs.find((t) => t.id === id);
     if (targetTab?.isDirty) {
-      const confirmClose = window.confirm(`Файл "${targetTab.name}" имеет несохраненные изменения. Закрыть без сохранения?`);
+      const confirmClose = window.confirm(
+        `Файл "${targetTab.name}" имеет несохраненные изменения. Закрыть без сохранения?`
+      );
       if (!confirmClose) return;
     }
 
@@ -211,19 +230,26 @@ export default function App() {
   // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      if (isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        setIsProductivityModalOpen((prev) => !prev);
+      } else if (isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        setIsSnippetVaultOpen((prev) => !prev);
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         setIsMarkdownMode((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsAiOpen((prev) => !prev);
       } else if (e.shiftKey && e.key === 'F11') {
         e.preventDefault();
         setIsZenMode((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleSaveFile();
       } else if (e.altKey && e.key.toLowerCase() === 'x') {
@@ -236,13 +262,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTabId, activeFile]);
 
-  // Log filter application
-  const displayedContent = filterQuery && activeFile
-    ? activeFile.content
-        .split('\n')
-        .filter((line) => line.toLowerCase().includes(filterQuery.toLowerCase()))
-        .join('\n')
-    : activeFile?.content || '';
+  // Log filter application memoized to prevent expensive recalculation
+  const displayedContent = useMemo(() => {
+    if (!filterQuery || !activeFile) return activeFile?.content || '';
+    const lower = filterQuery.toLowerCase();
+    return activeFile.content
+      .split('\n')
+      .filter((line) => line.toLowerCase().includes(lower))
+      .join('\n');
+  }, [filterQuery, activeFile?.content]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-vibe-bg text-vibe-text overflow-hidden select-none font-sans">
@@ -250,7 +278,7 @@ export default function App() {
       {!isZenMode && (
         <header className="flex items-center justify-between bg-[#141720] border-b border-vibe-border px-2 py-1 select-none">
           {/* Tabs Navigation */}
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[70%]">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[65%]">
             {tabs.map((tab) => {
               const isActive = tab.id === activeTabId;
               return (
@@ -274,7 +302,7 @@ export default function App() {
               );
             })}
             <button
-              onClick={handleAddTab}
+              onClick={() => handleAddTab()}
               className="p-1 hover:bg-vibe-surface text-vibe-muted hover:text-slate-200 rounded transition"
               title="Создать новый скратчпад"
             >
@@ -282,8 +310,34 @@ export default function App() {
             </button>
           </div>
 
-          {/* Top Control Buttons */}
-          <div className="flex items-center gap-2 px-2">
+          {/* Top Control Buttons & SaaS Modals Triggers */}
+          <div className="flex items-center gap-1.5 px-2">
+            <button
+              onClick={() => setIsProductivityModalOpen(true)}
+              className="p-1.5 bg-[#181b24] border border-vibe-border hover:bg-slate-700 text-vibe-muted hover:text-slate-200 rounded transition flex items-center gap-1 text-xs"
+              title="Vibe Productivity Dashboard (Ctrl+Shift+S)"
+            >
+              <Activity className="w-3.5 h-3.5 text-indigo-400" />
+            </button>
+
+            <button
+              onClick={() => setIsSnippetVaultOpen(true)}
+              className="p-1.5 bg-[#181b24] border border-vibe-border hover:bg-slate-700 text-vibe-muted hover:text-slate-200 rounded transition flex items-center gap-1 text-xs"
+              title="SaaS Snippet Vault & Templates (Ctrl+Shift+V)"
+            >
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            </button>
+
+            <button
+              onClick={() => setIsSessionExportOpen(true)}
+              className="p-1.5 bg-[#181b24] border border-vibe-border hover:bg-slate-700 text-vibe-muted hover:text-slate-200 rounded transition flex items-center gap-1 text-xs"
+              title="Session Sync & Gist Export"
+            >
+              <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+            </button>
+
+            <div className="w-[1px] h-4 bg-vibe-border mx-0.5" />
+
             <button
               onClick={handleSaveFile}
               disabled={isSaving}
@@ -466,6 +520,9 @@ export default function App() {
             const res = await IPCBridge.runShell('node scripts/register-windows.js');
             showToast('success', res);
           }}
+          onOpenProductivity={() => setIsProductivityModalOpen(true)}
+          onOpenSnippetVault={() => setIsSnippetVaultOpen(true)}
+          onOpenSessionExport={() => setIsSessionExportOpen(true)}
         />
       )}
 
@@ -478,6 +535,41 @@ export default function App() {
             showToast('success', 'Изменения от AI применены');
           }}
           onClose={() => setIsAiOpen(false)}
+        />
+      )}
+
+      {isProductivityModalOpen && (
+        <SaaSProductivityModal
+          tabs={tabs}
+          activeFile={activeFile}
+          onClose={() => setIsProductivityModalOpen(false)}
+        />
+      )}
+
+      {isSnippetVaultOpen && (
+        <SaaSSnippetVaultModal
+          onInsertToCurrent={(content) => {
+            handleUpdateContent(content);
+            showToast('success', 'Шаблон успешно вставлен в файл');
+          }}
+          onOpenInNewTab={(name, content) => {
+            handleAddTab(name, content);
+            showToast('success', `Создана новая вкладка: ${name}`);
+          }}
+          onClose={() => setIsSnippetVaultOpen(false)}
+        />
+      )}
+
+      {isSessionExportOpen && (
+        <SaaSSessionExportModal
+          tabs={tabs}
+          activeFile={activeFile}
+          onImportSession={(newTabs) => {
+            setTabs(newTabs);
+            if (newTabs.length > 0) setActiveTabId(newTabs[0].id);
+            showToast('success', `Восстановлено ${newTabs.length} вкладок сессии`);
+          }}
+          onClose={() => setIsSessionExportOpen(false)}
         />
       )}
     </div>
