@@ -1,0 +1,39 @@
+{
+  "applicationId": "com.vibepad.app",
+  "defaultMode": "window",
+  "port": 0,
+  "url": "/index.html",
+  "documentRoot": "/dist/",
+  "tokenSecurity": "one-time",
+  "cli": {
+    "binaryName": "VibePad",
+    "resourcesPath": "/bin/",
+    "extensionsPath": "/bin/extensions/",
+    "clientLibrary": "/dist/neutralino.js",
+    "binaryVersion": "4.15.0",
+    "clientVersion": "3.12.0"
+  },
+  "modes": {
+    "window": {
+      "title": "VibePad - Ultra-Lightweight Editor",
+      "width": 1150,
+      "height": 750,
+      "minWidth": 600,
+      "minHeight": 400,
+      "center": true,
+      "fullScreen": false,
+      "alwaysOnTop": false,
+      "enableInspector": true,
+      "borderless": false,
+      "resizable": true,
+      "exitProcessOnClose": true
+    }
+  },
+  "nativeAllowList": [
+    "app.*",
+    "window.*",
+    "filesystem.*",
+    "os.*",
+    "events.*"
+  ]
+}
