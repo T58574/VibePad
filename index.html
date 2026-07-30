@@ -5,14 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="./vibe-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VibePad - Ultra-Lightweight Editor</title>
-    <!-- Google Fonts for JetBrains Mono & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      window.__VIBE_ERRORS = [];
+      window.onerror = function(msg, src, line, col, err) {
+        window.__VIBE_ERRORS.push('[ERR] ' + msg + ' @ ' + src + ':' + line + (err && err.stack ? '\n' + err.stack : ''));
+        var r = document.getElementById('root');
+        if (r) r.innerHTML = '<pre style="color:#f87171;padding:24px;font:13px/1.6 monospace;white-space:pre-wrap;background:#0f1117;height:100vh;width:100vw">' + window.__VIBE_ERRORS.join('\n\n---\n\n') + '</pre>';
+      };
+      window.onunhandledrejection = function(e) {
+        var r = e.reason;
+        window.__VIBE_ERRORS.push('[PROMISE] ' + (r instanceof Error ? r.message + '\n' + r.stack : String(r)));
+        var rootEl = document.getElementById('root');
+        if (rootEl) rootEl.innerHTML = '<pre style="color:#f87171;padding:24px;font:13px/1.6 monospace;white-space:pre-wrap;background:#0f1117;height:100vh;width:100vw">' + window.__VIBE_ERRORS.join('\n\n---\n\n') + '</pre>';
+      };
+    </script>
+    <script src="./neutralino.js"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </head>
   <body class="bg-[#0f1117] text-[#e2e8f0] font-sans antialiased overflow-hidden select-none">
     <div id="root"></div>
-    <script src="neutralino.js"></script>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -16,24 +16,31 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-const md: MarkdownIt = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  highlight: function (str: string, lang: string): string {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return '<pre class="hljs"><code>' +
-               hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-               '</code></pre>';
-      } catch (__) {}
-    }
-    return '<pre class="hljs"><code>' + escapeHtml(str) + '</code></pre>';
+let mdInstance: any = null;
+function getMdInstance() {
+  if (!mdInstance) {
+    const MD = typeof MarkdownIt === 'function' ? MarkdownIt : (MarkdownIt as any).default || MarkdownIt;
+    mdInstance = new MD({
+      html: true,
+      linkify: true,
+      typographer: true,
+      highlight: function (str: string, lang: string): string {
+        if (lang && hljs.getLanguage(lang)) {
+          try {
+            return '<pre class="hljs"><code>' +
+                   hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                   '</code></pre>';
+          } catch (__) {}
+        }
+        return '<pre class="hljs"><code>' + escapeHtml(str) + '</code></pre>';
+      }
+    });
   }
-});
+  return mdInstance;
+}
 
 export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content }) => {
-  const renderedHtml = md.render(content);
+  const renderedHtml = getMdInstance().render(content);
 
   return (
     <div className="h-full w-full overflow-auto p-8 bg-[#0f1117] text-slate-200">

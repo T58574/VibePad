@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SaaSFeatures } from './saasFeatures';
 import { FileItem } from './ipcBridge';
 
@@ -52,19 +52,44 @@ describe('SaaSFeatures Utility Suite', () => {
     it('should accurately calculate total lines, characters, words, and language breakdown', () => {
       const stats = SaaSFeatures.calculateProductivityStats(mockTabs);
       expect(stats.totalTabs).toBe(2);
-      expect(stats.totalLines).toBe(6); // 4 + 2
+      expect(stats.totalLines).toBe(6);
       expect(stats.languageBreakdown.json).toBe(50);
       expect(stats.languageBreakdown.md).toBe(50);
       expect(stats.vibeScore).toBeGreaterThan(0);
     });
   });
 
-  describe('getBuiltInSnippets', () => {
+  describe('getBuiltInSnippets & Custom Snippets', () => {
     it('should return curated SaaS templates with Docker, Config, Postgres, and OpenAPI', () => {
       const snippets = SaaSFeatures.getBuiltInSnippets();
-      expect(snippets.length).toBeGreaterThanOrEqual(4);
+      expect(snippets.length).toBeGreaterThanOrEqual(5);
       expect(snippets.some((s) => s.category === 'Docker')).toBe(true);
       expect(snippets.some((s) => s.category === 'Database')).toBe(true);
+    });
+
+    it('should allow saving, fetching, and deleting custom snippets', () => {
+      const custom = SaaSFeatures.saveCustomSnippet({
+        title: 'Custom Fastify Server',
+        category: 'Config',
+        filename: 'server.ts',
+        description: 'Fastify API template',
+        content: 'import Fastify from "fastify";',
+      });
+
+      expect(custom.id).toContain('custom-');
+      expect(custom.isCustom).toBe(true);
+
+      const all = SaaSFeatures.getAllSnippets();
+      expect(all.some((s) => s.id === custom.id)).toBe(true);
+
+      SaaSFeatures.deleteCustomSnippet(custom.id);
+      const remaining = SaaSFeatures.getCustomSnippets();
+      expect(remaining.some((s) => s.id === custom.id)).toBe(false);
+    });
+
+    it('should throw error when saving snippet with missing title or content', () => {
+      expect(() => SaaSFeatures.saveCustomSnippet({ title: '', category: 'Config', filename: 't.txt', description: '', content: 'x' })).toThrow(/Заголовок шаблона обязателен/);
+      expect(() => SaaSFeatures.saveCustomSnippet({ title: 'T', category: 'Config', filename: 't.txt', description: '', content: '' })).toThrow(/Содержимое шаблона обязательно/);
     });
   });
 });

@@ -7,6 +7,8 @@ import { json } from '@codemirror/lang-json';
 import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 import { python } from '@codemirror/lang-python';
+import { javascript } from '@codemirror/lang-javascript';
+import { sql } from '@codemirror/lang-sql';
 
 interface EditorProps {
   content: string;
@@ -30,13 +32,14 @@ export const Editor: React.FC<EditorProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Language detection extensions
+    // Base extensions
     const extensions = [
       lineNumbers(),
       highlightActiveLineGutter(),
       highlightActiveLine(),
       history(),
       highlightSelectionMatches(),
+      EditorView.lineWrapping,
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -49,7 +52,7 @@ export const Editor: React.FC<EditorProps> = ({
             update.state.selection.main.to
           );
           if (selection.trim().length > 0) {
-            const coords = viewRef.current?.coordsAtPos(update.state.selection.main.to);
+            const coords = update.view.coordsAtPos(update.state.selection.main.to);
             onSelectionChange(selection, coords ? { x: coords.left, y: coords.bottom } : null);
           } else {
             onSelectionChange('', null);
@@ -58,13 +61,15 @@ export const Editor: React.FC<EditorProps> = ({
       }),
     ];
 
-    // Disable heavy syntax extensions if file > 50MB
+    // Disable heavy syntax extensions if file > 10MB/50MB safe mode
     if (!isLargeFile) {
       const lowerName = fileName.toLowerCase();
       if (lowerName.endsWith('.json')) extensions.push(json());
       else if (lowerName.endsWith('.md')) extensions.push(markdown());
       else if (lowerName.endsWith('.yaml') || lowerName.endsWith('.yml')) extensions.push(yaml());
       else if (lowerName.endsWith('.py')) extensions.push(python());
+      else if (/\.(js|jsx|ts|tsx)$/.test(lowerName)) extensions.push(javascript({ jsx: true, typescript: true }));
+      else if (lowerName.endsWith('.sql')) extensions.push(sql());
     }
 
     const state = EditorState.create({
@@ -95,6 +100,7 @@ export const Editor: React.FC<EditorProps> = ({
     if (viewRef.current) {
       const currentDoc = viewRef.current.state.doc.toString();
       if (currentDoc !== content) {
+        isInternalChangeRef.current = true;
         viewRef.current.dispatch({
           changes: { from: 0, to: viewRef.current.state.doc.length, insert: content },
         });

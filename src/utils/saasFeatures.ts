@@ -30,9 +30,13 @@ export interface SaaSSnippet {
   filename: string;
   description: string;
   content: string;
+  isCustom?: boolean;
 }
 
 export class SaaSFeatures {
+  private static CUSTOM_SNIPPETS_KEY = 'vibepad_custom_snippets';
+  private static inMemoryCustomSnippets: SaaSSnippet[] = [];
+
   /**
    * Export all active tabs into a portable SaaS Session JSON format
    */
@@ -292,6 +296,95 @@ MAX_FILE_SIZE_MB=50
 LOG_LEVEL=info
 `,
       },
+      {
+        id: 'vite-tailwind-ts',
+        title: 'Vite React Tailwind Preset',
+        category: 'Frontend',
+        filename: 'App.tsx',
+        description: 'Clean modern React + Tailwind CSS starter component',
+        content: `import React from 'react';
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
+      <h1 className="text-3xl font-bold tracking-tight text-indigo-400">VibePad Application</h1>
+      <p className="mt-2 text-slate-400 text-sm">Ultra-lightweight React & Tailwind workspace</p>
+    </div>
+  );
+}
+`,
+      },
     ];
+  }
+
+  /**
+   * Retrieve user-defined custom snippets from localStorage or memory
+   */
+  static getCustomSnippets(): SaaSSnippet[] {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.getItem === 'function') {
+        const saved = localStorage.getItem(this.CUSTOM_SNIPPETS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      }
+    } catch {}
+    return this.inMemoryCustomSnippets;
+  }
+
+  /**
+   * Save a user-defined custom snippet to localStorage and memory
+   */
+  static saveCustomSnippet(snippet: Omit<SaaSSnippet, 'id'> & { id?: string }): SaaSSnippet {
+    if (!snippet.title || !snippet.title.trim()) throw new Error('Заголовок шаблона обязателен');
+    if (!snippet.content || !snippet.content.trim()) throw new Error('Содержимое шаблона обязательно');
+
+    const newSnippet: SaaSSnippet = {
+      id: snippet.id || `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      title: snippet.title.trim(),
+      category: snippet.category || 'Config',
+      filename: snippet.filename?.trim() || 'template.txt',
+      description: snippet.description?.trim() || 'Пользовательский шаблон',
+      content: snippet.content,
+      isCustom: true,
+    };
+
+    const existing = this.getCustomSnippets();
+    const updated = [newSnippet, ...existing.filter((s) => s.id !== newSnippet.id)];
+    this.inMemoryCustomSnippets = updated;
+
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.setItem === 'function') {
+        localStorage.setItem(this.CUSTOM_SNIPPETS_KEY, JSON.stringify(updated));
+      }
+    } catch (e) {
+      console.warn('Failed to persist custom snippet:', e);
+    }
+
+    return newSnippet;
+  }
+
+  /**
+   * Delete a custom snippet from localStorage and memory
+   */
+  static deleteCustomSnippet(id: string): void {
+    const existing = this.getCustomSnippets();
+    const updated = existing.filter((s) => s.id !== id);
+    this.inMemoryCustomSnippets = updated;
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.setItem === 'function') {
+        localStorage.setItem(this.CUSTOM_SNIPPETS_KEY, JSON.stringify(updated));
+      }
+    } catch (e) {
+      console.warn('Failed to delete custom snippet:', e);
+    }
+  }
+
+  /**
+   * Get all snippets (built-in + custom)
+   */
+  static getAllSnippets(): SaaSSnippet[] {
+    return [...this.getCustomSnippets(), ...this.getBuiltInSnippets()];
   }
 }

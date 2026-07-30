@@ -4,6 +4,7 @@ node_modules/
 
 # Build Outputs & Generated Binaries
 dist/
+release/
 bin/
 .tmp/
 .storage/

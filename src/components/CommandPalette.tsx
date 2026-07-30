@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Code, FileText, ShieldCheck, Activity, Layers, Share2 } from 'lucide-react';
+import { Search, Code, FileText, ShieldCheck, Activity, Layers, Share2, Terminal, Globe, KeyRound, Table } from 'lucide-react';
 import { DevTools } from '../utils/devTools';
 
 interface CommandPaletteProps {
@@ -30,9 +30,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'saas-analytics', name: 'Open Vibe Productivity Dashboard (Ctrl+Shift+S)', icon: Activity, action: onOpenProductivity },
     { id: 'saas-snippets', name: 'Open SaaS Snippet Vault & Templates (Ctrl+Shift+V)', icon: Layers, action: onOpenSnippetVault },
     { id: 'saas-session', name: 'Cloud Sync & Session Export/Import', icon: Share2, action: onOpenSessionExport },
+    { id: 'json-ts', name: 'Generate TypeScript Interfaces from JSON', icon: Code, action: () => onTransformContent((c) => DevTools.generateTsInterfaceFromJson(c)) },
     { id: 'json-prettify', name: 'Format JSON (Prettify)', icon: Code, action: () => onTransformContent(DevTools.prettifyJson) },
     { id: 'json-minify', name: 'Minify JSON', icon: Code, action: () => onTransformContent(DevTools.minifyJson) },
+    { id: 'sql-format', name: 'Format SQL Query', icon: Terminal, action: () => onTransformContent(DevTools.formatSql) },
+    { id: 'sql-minify', name: 'Minify SQL Query', icon: Terminal, action: () => onTransformContent(DevTools.minifySql) },
+    { id: 'curl-fetch', name: 'Convert cURL Command to fetch()', icon: Globe, action: () => onTransformContent(DevTools.curlToFetch) },
+    { id: 'jwt-decode', name: 'Decode JWT Token Payload', icon: KeyRound, action: () => onTransformContent(DevTools.decodeJwt) },
+    { id: 'csv-markdown', name: 'Convert CSV to Markdown Table', icon: Table, action: () => onTransformContent(DevTools.csvToMarkdownTable) },
     { id: 'clean-logs', name: 'Clean Logs (Strip ANSI & Timestamps)', icon: FileText, action: () => onTransformContent(DevTools.cleanLogs) },
+    { id: 'url-encode', name: 'URL Encode String', icon: Globe, action: () => onTransformContent(DevTools.urlEncode) },
+    { id: 'url-decode', name: 'URL Decode String', icon: Globe, action: () => onTransformContent(DevTools.urlDecode) },
+    { id: 'html-escape', name: 'Escape HTML Special Characters', icon: Code, action: () => onTransformContent(DevTools.escapeHtml) },
+    { id: 'html-unescape', name: 'Unescape HTML Entities', icon: Code, action: () => onTransformContent(DevTools.unescapeHtml) },
     { id: 'toggle-markdown', name: 'Toggle Markdown Preview (Ctrl+E)', icon: FileText, action: onToggleMarkdown },
     { id: 'toggle-diff', name: 'Toggle Split-View Diff (Ctrl+Shift+D)', icon: Code, action: onToggleDiff },
     { id: 'register-win', name: 'Integrate into Windows Explorer Context Menu', icon: ShieldCheck, action: onRegisterWindows },
@@ -85,7 +95,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           <kbd className="text-[10px] bg-vibe-bg text-vibe-muted px-1.5 py-0.5 rounded font-mono">ESC</kbd>
         </div>
 
-        <div className="max-h-72 overflow-auto p-2">
+        <div className="max-h-80 overflow-auto p-2">
           {filteredActions.length === 0 ? (
             <div className="p-4 text-center text-xs text-vibe-muted">Команды не найдены</div>
           ) : (
