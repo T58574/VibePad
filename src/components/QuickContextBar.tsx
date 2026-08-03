@@ -30,6 +30,8 @@ export const QuickContextBar: React.FC<QuickContextBarProps> = ({
   const isSqlLike = /\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\b/i.test(trimmed);
   const isCronLike = /^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(trimmed);
   const isMdTableLike = trimmed.includes('|') && trimmed.includes('\n');
+  const isColorLike = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed) || /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(trimmed);
+
 
   const handleDecodeBase64 = () => {
     try {
@@ -136,6 +138,21 @@ export const QuickContextBar: React.FC<QuickContextBarProps> = ({
           title="Выравнять таблицы Markdown"
         >
           Align Table
+        </button>
+      )}
+
+      {isColorLike && (
+        <button
+          onClick={() => {
+            try {
+              const format = trimmed.startsWith('#') ? 'rgb' : 'hex';
+              onReplaceSelection(DevTools.convertColor(trimmed, format));
+            } catch {}
+          }}
+          className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-pink-300 transition text-[11px] font-mono"
+          title="Конвертировать цвет (HEX ➔ RGB или RGB ➔ HEX)"
+        >
+          {trimmed.startsWith('#') ? 'HEX➔RGB' : 'RGB➔HEX'}
         </button>
       )}
 

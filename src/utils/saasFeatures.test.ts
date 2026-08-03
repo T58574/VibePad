@@ -132,4 +132,38 @@ describe('SaaSFeatures Utility Suite', () => {
       expect(diff.modified).toEqual(['app.js']);
     });
   });
+
+  describe('analyzeCodeSecurity', () => {
+    it('should return perfect 100 score for clean code', () => {
+      const report = SaaSFeatures.analyzeCodeSecurity('const x = 10;\nconsole.log(x);', 'clean.ts');
+      expect(report.score).toBe(100);
+      expect(report.totalVulnerabilities).toBe(0);
+    });
+
+    it('should detect AWS Access Keys, eval calls, and SQL injection risks', () => {
+      const vulnerableCode = `
+        const awsKey = "AKIA1234567890ABCDEF";
+        eval("console.log('danger')");
+        const query = "SELECT * FROM users WHERE name = " + userInput;
+      `;
+      const report = SaaSFeatures.analyzeCodeSecurity(vulnerableCode, 'vulnerable.js');
+      expect(report.totalVulnerabilities).toBe(3);
+      expect(report.criticalCount).toBe(1);
+      expect(report.highCount).toBe(2);
+      expect(report.score).toBeLessThan(50);
+      expect(report.vulnerabilities.some(v => v.ruleId === 'SEC-001')).toBe(true);
+      expect(report.vulnerabilities.some(v => v.ruleId === 'SEC-005')).toBe(true);
+      expect(report.vulnerabilities.some(v => v.ruleId === 'SEC-007')).toBe(true);
+    });
+  });
+
+  describe('generateReadmeSnippet', () => {
+    it('should generate structured README.md content from active workspace tabs', () => {
+      const readme = SaaSFeatures.generateReadmeSnippet(mockTabs);
+      expect(readme).toContain('# 🚀 VibePad Workspace Project');
+      expect(readme).toContain('config.json');
+      expect(readme).toContain('README.md');
+    });
+  });
 });
+

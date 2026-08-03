@@ -258,5 +258,69 @@ APP_NAME=VibePad
       expect(res.recommendedMode).toBe('Binary Warning');
     });
   });
+
+  describe('diffText', () => {
+    it('should compute line diff correctly for added, removed, and unchanged lines', () => {
+      const textA = 'line 1\nline 2\nline 3';
+      const textB = 'line 1\nline 2 modified\nline 3\nline 4';
+
+      const diff = DevTools.diffText(textA, textB);
+      expect(diff.lines.length).toBeGreaterThan(0);
+      expect(diff.addedCount).toBeGreaterThan(0);
+      expect(diff.unchangedCount).toBe(2);
+    });
+  });
+
+  describe('flattenJson & unflattenJson', () => {
+    it('should flatten nested JSON into dot notation and restore it cleanly', () => {
+      const nested = JSON.stringify({ app: { server: { port: 8080, host: 'localhost' } } });
+      const flattened = DevTools.flattenJson(nested);
+      expect(flattened).toContain('"app.server.port": 8080');
+
+      const restored = DevTools.unflattenJson(flattened);
+      const parsed = JSON.parse(restored);
+      expect(parsed.app.server.port).toBe(8080);
+      expect(parsed.app.server.host).toBe('localhost');
+    });
+  });
+
+  describe('generateUuid', () => {
+    it('should return valid v4 UUID pattern string', () => {
+      const uuid = DevTools.generateUuid();
+      expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    });
+  });
+
+  describe('convertColor', () => {
+    it('should convert #HEX to RGB and HSL', () => {
+      const rgb = DevTools.convertColor('#ff0000', 'rgb');
+      expect(rgb).toBe('rgb(255, 0, 0)');
+
+      const hsl = DevTools.convertColor('rgb(255, 0, 0)', 'hsl');
+      expect(hsl).toBe('hsl(0, 100%, 50%)');
+
+      const hex = DevTools.convertColor('rgb(0, 255, 0)', 'hex');
+      expect(hex).toBe('#00ff00');
+    });
+
+    it('should throw error on invalid color input', () => {
+      expect(() => DevTools.convertColor('invalid', 'hex')).toThrow();
+    });
+  });
+
+  describe('convertTimestamp', () => {
+    it('should parse Unix timestamp seconds and milliseconds', () => {
+      const resSec = DevTools.convertTimestamp(1700000000);
+      expect(resSec.iso).toContain('2023-11-14');
+
+      const resMs = DevTools.convertTimestamp(1700000000000);
+      expect(resMs.unixSec).toBe(1700000000);
+    });
+
+    it('should throw on invalid timestamp', () => {
+      expect(() => DevTools.convertTimestamp('invalid-date')).toThrow();
+    });
+  });
 });
+
 

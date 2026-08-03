@@ -15,7 +15,7 @@
 
 - **Core Editor Engine**: CodeMirror 6 (виртуализированный скроллинг для гигантских логов, мультикурсоры, подсветка синтаксиса JS/TS/SQL/Python/YAML/JSON/Markdown, line wrapping).
 - **UI Framework**: React 18 + Vite + Tailwind CSS (Glassmorphism dark theme в стиле Sublime / Linear).
-- **Automated Testing Suite**: Vitest + JSDOM (`npm run test`), 57/57 проходящих автотестов для утилит, React компонентов и SaaS функционала.
+- **Automated Testing Suite**: Vitest + JSDOM (`npm run test`), 71/71 проходящих автотестов для утилит, React компонентов и SaaS функционала.
 - **Resilience Layer**: React `ErrorBoundary` для перехвата рантайм-ошибок с дашбордом аварийного восстановления сессий без потери файлов.
 - **Markdown Engine**: `markdown-it` (с безопасной ленивой инициализацией) + `highlight.js` + `katex` (переключение по `Ctrl+E`).
 - **Native Host & Launcher**: Standalone Electron Runtime packaged via `electron-builder` into single **`VibePad.exe`**.
@@ -27,9 +27,10 @@
   - Асинхронный non-blocking I/O (`fs.promises`).
   - Запись во временные файлы `.vibetmp` с последующим `rename` (атомарное сохранение против повреждения файлов при сбоях).
 - **SaaS Features & DevTools Suite (`saasFeatures.ts` & `devTools.ts`)**:
-  - **Vibe Productivity & Telemetry Dashboard (`Ctrl+Shift+S`)**: Метрики в реальном времени, RAM footprint, Vibe Index Score, статистика языков/строк и встроенная оценка сложности кода (Cyclomatic Complexity & Maintainability Index).
+  - **SAST Static Code Security & Secret Scanner (`analyzeCodeSecurity`)**: Сканирование на утечки AWS/GitHub/Stripe/OpenAI ключей, SSH приватных ключей, RCE eval(), XSS innerHTML, SQL-инъекций и небезопасных TLS настроек с генерацией скоринга безопасности.
+  - **Vibe Productivity & Telemetry Dashboard (`Ctrl+Shift+S`)**: Метрики в реальном времени, RAM footprint, Vibe Index Score, статистика языков/строк, оценка сложности кода (Cyclomatic Complexity & Maintainability Index) и интерактивный SAST аудитор безопасности.
   - **SaaS Snippet Vault & Workspace Presets (`Ctrl+Shift+V`)**: Встроенный каталог шаблонов + 1-click генератор готовых окружений (Fullstack Node, Python FastAPI, DevOps K8s) + пользовательские сниппеты.
-  - **Developer Tools**: Cron выражение в понятную речь (`humanizeCron`), автоматическое выравнивание Markdown таблиц (`formatMarkdownTable`), сортировщик и парсер `.env` файлов (`formatEnvFile`), анализатор производительности и бинарных файлов (`analyzeFilePerformance`), генератор TS типов, JSON<->YAML, JWT, SHA-256, SQL Форматтер, cURL->fetch.
+  - **Developer Tools Suite**: Line-by-line Diff (`diffText`), JSON Dot-notation Flatten/Unflatten, RFC 4122 v4 UUID генератор, Конвертер цветов (HEX <-> RGB <-> HSL), Timestamp & ISO 8601 Конвертер, Cron выражение в понятную речь (`humanizeCron`), форматирование Markdown таблиц (`formatMarkdownTable`), сортировка `.env` файлов (`formatEnvFile`), анализатор производительности (`analyzeFilePerformance`), генерация TS типов, JSON<->YAML, JWT, SHA-256, SQL Форматтер, cURL->fetch.
   - **Cloud Sync & Session Transfer (`Ctrl+Shift+E` / Header)**: 1-click экспорт/импорт всей сессии в JSON и генерация GitHub Gist Share payload.
 - **Windows Explorer Integration**: Регистрация в реестре Windows (`HKCU\Software\Classes`):
   - Контекстное меню для любых файлов: **"Открыть в VibePad"** с иконкой приложения.

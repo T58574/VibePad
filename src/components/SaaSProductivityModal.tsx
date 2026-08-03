@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Activity, Cpu, FileText, Zap, BarChart3, Clock, CheckCircle, Code } from 'lucide-react';
+import { X, Activity, Cpu, FileText, Zap, BarChart3, Clock, CheckCircle, Code, ShieldAlert, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { FileItem } from '../utils/ipcBridge';
 import { SaaSFeatures } from '../utils/saasFeatures';
 import { DevTools } from '../utils/devTools';
@@ -152,6 +152,66 @@ export const SaaSProductivityModal: React.FC<SaaSProductivityModalProps> = ({
                       <span className="font-mono text-cyan-400 font-semibold">{complexity.maxDepth}</span>
                     </div>
                   </div>
+                </div>
+              );
+            })()
+          )}
+
+          {/* SAST Security Audit Guard */}
+          {activeFile && (
+            (() => {
+              const security = SaaSFeatures.analyzeCodeSecurity(activeFile.content, activeFile.name);
+              return (
+                <div className="bg-[#0f1117] p-4 rounded-xl border border-vibe-border/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-vibe-muted uppercase tracking-wider flex items-center gap-1.5">
+                      {security.score === 100 ? (
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                      )}
+                      SAST Сканер Безопасности ({activeFile.name})
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
+                      security.score === 100
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : security.score >= 70
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}>
+                      Security Score: {security.score}/100
+                    </span>
+                  </div>
+
+                  {security.totalVulnerabilities === 0 ? (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 text-xs text-emerald-300">
+                      <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+                      Утечек секретов и критических уязвимостей в файле не обнаружено.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-rose-400">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Найдено уязвимостей: {security.totalVulnerabilities} (Критических: {security.criticalCount}, Высоких: {security.highCount})
+                      </div>
+                      <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                        {security.vulnerabilities.map((v) => (
+                          <div key={v.id} className="p-2 bg-[#141720] border border-vibe-border/40 rounded text-xs space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-rose-300">
+                                [{v.severity}] {v.category} — Строка {v.line}
+                              </span>
+                              <span className="text-[10px] font-mono text-vibe-muted">{v.ruleId}</span>
+                            </div>
+                            <p className="text-slate-300 text-[11px]">{v.description}</p>
+                            <p className="text-[10px] text-indigo-300 font-mono bg-[#0f1117] p-1 rounded">
+                              💡 {v.recommendation}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()

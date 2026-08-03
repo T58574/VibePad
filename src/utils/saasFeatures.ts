@@ -33,6 +33,28 @@ export interface SaaSSnippet {
   isCustom?: boolean;
 }
 
+export interface SecurityVulnerability {
+  id: string;
+  ruleId: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  category: 'Secret Leak' | 'Command Injection' | 'XSS Risk' | 'SQL Injection' | 'Insecure Config';
+  line: number;
+  description: string;
+  snippet: string;
+  recommendation: string;
+}
+
+export interface SecurityAuditReport {
+  score: number;
+  totalVulnerabilities: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  vulnerabilities: SecurityVulnerability[];
+}
+
+
 export class SaaSFeatures {
   private static CUSTOM_SNIPPETS_KEY = 'vibepad_custom_snippets';
   private static inMemoryCustomSnippets: SaaSSnippet[] = [];
@@ -547,4 +569,151 @@ async def process_doc(payload: DocumentPayload):
 
     return { added, removed, modified };
   }
+
+  /**
+   * Static Application Security Testing (SAST) Code & Secret Scanner
+   */
+  static analyzeCodeSecurity(content: string, filename: string = 'file.txt'): SecurityAuditReport {
+    if (!content || !content.trim()) {
+      return {
+        score: 100,
+        totalVulnerabilities: 0,
+        criticalCount: 0,
+        highCount: 0,
+        mediumCount: 0,
+        lowCount: 0,
+        vulnerabilities: [],
+      };
+    }
+
+    const lines = content.split(/\r?\n/);
+    const vulnerabilities: SecurityVulnerability[] = [];
+
+    const rules: Array<{
+      ruleId: string;
+      category: SecurityVulnerability['category'];
+      severity: SecurityVulnerability['severity'];
+      regex: RegExp;
+      description: string;
+      recommendation: string;
+    }> = [
+      {
+        ruleId: 'SEC-001',
+        category: 'Secret Leak',
+        severity: 'CRITICAL',
+        regex: /AKIA[0-9A-Z]{16}/,
+        description: 'Обнаружен открытый AWS Access Key ID',
+        recommendation: 'Удалите секретный ключ и вынесите его в переменные окружения (.env или AWS Secrets Manager).',
+      },
+      {
+        ruleId: 'SEC-002',
+        category: 'Secret Leak',
+        severity: 'CRITICAL',
+        regex: /ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{50,}/,
+        description: 'Обнаружен персональный токен доступа GitHub (Personal Access Token)',
+        recommendation: 'Отозовите токен в настройках GitHub и используйте секреты окружения.',
+      },
+      {
+        ruleId: 'SEC-003',
+        category: 'Secret Leak',
+        severity: 'CRITICAL',
+        regex: /-----BEGIN (?:RSA|OPENSSH|EC|DSA|PRIVATE) KEY-----/,
+        description: 'Обнаружен приватный SSH/SSL ключ в исходном коде',
+        recommendation: 'Никогда не храните файлы приватных ключей в репозитории.',
+      },
+      {
+        ruleId: 'SEC-004',
+        category: 'Secret Leak',
+        severity: 'HIGH',
+        regex: /sk_live_[0-9a-zA-Z]{24}|sk-[a-zA-Z0-9]{32,}/,
+        description: 'Обнаружен секретный API-ключ (Stripe / OpenAI / Service Key)',
+        recommendation: 'Вынесите секретные ключи в переменные окружения process.env.',
+      },
+      {
+        ruleId: 'SEC-005',
+        category: 'Command Injection',
+        severity: 'HIGH',
+        regex: /eval\s*\(|new\s+Function\s*\(|child_process\.exec\s*\(/,
+        description: 'Использование опасных вызовов eval() / exec(), приводящих к RCE',
+        recommendation: 'Избегайте выполнения динамического кода. Используйте безопасные функции child_process.execFile() с экранированием.',
+      },
+      {
+        ruleId: 'SEC-006',
+        category: 'XSS Risk',
+        severity: 'MEDIUM',
+        regex: /\.innerHTML\s*=|dangerouslySetInnerHTML/,
+        description: 'Прямая вставка неотфильтрованного HTML (Риск XSS-атак)',
+        recommendation: 'Используйте безопасный textContent или санитайзеры DOMPurify.',
+      },
+      {
+        ruleId: 'SEC-007',
+        category: 'SQL Injection',
+        severity: 'HIGH',
+        regex: /(?:SELECT|INSERT|UPDATE|DELETE).*\+\s*[a-zA-Z_$]/i,
+        description: 'Конкатенация строк в SQL-запросе (Риск SQL-инъекции)',
+        recommendation: 'Используйте параметризованные запросы или подготовленные выражения (Prepared Statements).',
+      },
+      {
+        ruleId: 'SEC-008',
+        category: 'Insecure Config',
+        severity: 'MEDIUM',
+        regex: /rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]0['"]/,
+        description: 'Отключение проверки SSL-сертификатов TLS',
+        recommendation: 'Включите проверку SSL в продакшн-окружении для защиты от MITM-атак.',
+      },
+    ];
+
+    lines.forEach((lineText, idx) => {
+      rules.forEach((rule) => {
+        if (rule.regex.test(lineText)) {
+          vulnerabilities.push({
+            id: `vuln-${Date.now()}-${vulnerabilities.length + 1}`,
+            ruleId: rule.ruleId,
+            category: rule.category,
+            severity: rule.severity,
+            line: idx + 1,
+            description: rule.description,
+            snippet: lineText.trim().slice(0, 100),
+            recommendation: rule.recommendation,
+          });
+        }
+      });
+    });
+
+    let criticalCount = 0;
+    let highCount = 0;
+    let mediumCount = 0;
+    let lowCount = 0;
+
+    vulnerabilities.forEach((v) => {
+      if (v.severity === 'CRITICAL') criticalCount++;
+      else if (v.severity === 'HIGH') highCount++;
+      else if (v.severity === 'MEDIUM') mediumCount++;
+      else if (v.severity === 'LOW') lowCount++;
+    });
+
+    const penalty = criticalCount * 30 + highCount * 15 + mediumCount * 10 + lowCount * 5;
+    const score = Math.max(0, 100 - penalty);
+
+    return {
+      score,
+      totalVulnerabilities: vulnerabilities.length,
+      criticalCount,
+      highCount,
+      mediumCount,
+      lowCount,
+      vulnerabilities,
+    };
+  }
+
+  /**
+   * Auto-generate a Markdown README.md for current workspace tabs
+   */
+  static generateReadmeSnippet(tabs: FileItem[]): string {
+    const fileList = tabs.map(t => `- **\`${t.name}\`** (${t.encoding}, ${t.lineEnding})`).join('\n');
+    const stats = this.calculateProductivityStats(tabs);
+
+    return `# 🚀 VibePad Workspace Project\n\n## 📋 Overview\nProject generated with **VibePad SaaS Edition**.\nTotal active tabs: **${stats.totalTabs}** | Lines of code: **${stats.totalLines.toLocaleString()}** | Vibe Score: **${stats.vibeScore}%**.\n\n## 📁 Workspace Files\n${fileList}\n\n## ⚡ Quick Start\n\`\`\`bash\n# Build & Test session\nnpm run test\n\`\`\`\n`;
+  }
 }
+

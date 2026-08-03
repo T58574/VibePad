@@ -64,6 +64,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         return `// VibePad Performance & Safe Guard Report\n// Size: ${(stats.sizeBytes / 1024).toFixed(2)} KB\n// Lines: ${stats.totalLines}\n// Max Line Length: ${stats.maxLineLength} chars\n// Is Large (>10MB / 50k lines): ${stats.isLargeFile ? 'YES' : 'NO'}\n// Binary Risk: ${stats.isBinary ? 'YES' : 'NO'}\n// Recommended Mode: ${stats.recommendedMode}\n\n${c}`;
       })
     },
+    { id: 'json-flatten', name: 'Flatten Nested JSON to Dot-Notation', icon: Code, action: () => onTransformContent(DevTools.flattenJson) },
+    { id: 'json-unflatten', name: 'Unflatten Dot-Notation JSON to Nested Object', icon: Code, action: () => onTransformContent(DevTools.unflattenJson) },
+    { id: 'generate-uuid', name: 'Generate RFC 4122 v4 UUID String', icon: KeyRound, action: () => onTransformContent((c) => (c ? `${c}\n${DevTools.generateUuid()}` : DevTools.generateUuid())) },
+    { id: 'color-convert-hex', name: 'Convert Color to #HEX', icon: Code, action: () => onTransformContent((c) => DevTools.convertColor(c, 'hex')) },
+    { id: 'color-convert-rgb', name: 'Convert Color to rgb()', icon: Code, action: () => onTransformContent((c) => DevTools.convertColor(c, 'rgb')) },
+    { id: 'timestamp-convert', name: 'Convert Timestamp to ISO & Human Readable', icon: Activity, action: () => onTransformContent((c) => {
+        const res = DevTools.convertTimestamp(c.trim() || Date.now());
+        return `// Timestamp Analysis\n// ISO: ${res.iso}\n// Unix (sec): ${res.unixSec}\n// Unix (ms): ${res.unixMs}\n// Readable: ${res.readable}`;
+      })
+    },
+    { id: 'sast-security-scan', name: 'Run SAST Code Security & Secret Leak Scanner', icon: ShieldCheck, action: () => onTransformContent((c) => {
+        const report = SaaSFeatures.analyzeCodeSecurity(c, 'active-file');
+        const vulns = report.vulnerabilities.map(v => `// [${v.severity}] Line ${v.line}: ${v.description} (${v.ruleId})\n// Recommendation: ${v.recommendation}`).join('\n');
+        return `// 🛡️ VibePad SAST Security Audit Report\n// Security Score: ${report.score}/100\n// Total Vulnerabilities: ${report.totalVulnerabilities} (Critical: ${report.criticalCount}, High: ${report.highCount})\n${vulns}\n\n${c}`;
+      })
+    },
     { id: 'toggle-markdown', name: 'Toggle Markdown Preview (Ctrl+E)', icon: FileText, action: onToggleMarkdown },
     { id: 'toggle-diff', name: 'Toggle Split-View Diff (Ctrl+Shift+D)', icon: Code, action: onToggleDiff },
     { id: 'register-win', name: 'Integrate into Windows Explorer Context Menu', icon: ShieldCheck, action: onRegisterWindows },

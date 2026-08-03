@@ -774,5 +774,224 @@ export class DevTools {
       recommendedMode
     };
   }
+
+  /**
+   * Line-by-line diff comparison between two text strings
+   */
+  static diffText(textA: string, textB: string): {
+    lines: Array<{ type: 'added' | 'removed' | 'unchanged'; text: string; lineA?: number; lineB?: number }>;
+    addedCount: number;
+    removedCount: number;
+    unchangedCount: number;
+  } {
+    const linesA = (textA || '').split(/\r?\n/);
+    const linesB = (textB || '').split(/\r?\n/);
+
+    const result: Array<{ type: 'added' | 'removed' | 'unchanged'; text: string; lineA?: number; lineB?: number }> = [];
+    let addedCount = 0;
+    let removedCount = 0;
+    let unchangedCount = 0;
+
+    let i = 0;
+    let j = 0;
+    let lineNoA = 1;
+    let lineNoB = 1;
+
+    while (i < linesA.length || j < linesB.length) {
+      if (i < linesA.length && j < linesB.length && linesA[i] === linesB[j]) {
+        result.push({ type: 'unchanged', text: linesA[i], lineA: lineNoA++, lineB: lineNoB++ });
+        unchangedCount++;
+        i++;
+        j++;
+      } else if (j < linesB.length && (!linesA.includes(linesB[j], i) || linesB.includes(linesA[i], j + 1))) {
+        result.push({ type: 'added', text: linesB[j], lineB: lineNoB++ });
+        addedCount++;
+        j++;
+      } else if (i < linesA.length) {
+        result.push({ type: 'removed', text: linesA[i], lineA: lineNoA++ });
+        removedCount++;
+        i++;
+      }
+    }
+
+    return { lines: result, addedCount, removedCount, unchangedCount };
+  }
+
+  /**
+   * Flatten nested JSON object into dot-notation keys
+   */
+  static flattenJson(jsonStr: string): string {
+    if (!jsonStr || !jsonStr.trim()) return '{}';
+    let obj: any;
+    try {
+      obj = JSON.parse(jsonStr);
+    } catch (e: any) {
+      throw new Error(`Ошибка парсинга JSON: ${e.message}`);
+    }
+
+    const flatObj: Record<string, any> = {};
+    const recurse = (current: any, prop: string) => {
+      if (Object(current) !== current || Array.isArray(current) || current === null) {
+        flatObj[prop] = current;
+      } else {
+        let isEmpty = true;
+        for (const p in current) {
+          isEmpty = false;
+          recurse(current[p], prop ? `${prop}.${p}` : p);
+        }
+        if (isEmpty && prop) {
+          flatObj[prop] = {};
+        }
+      }
+    };
+
+    recurse(obj, '');
+    return JSON.stringify(flatObj, null, 2);
+  }
+
+  /**
+   * Unflatten dot-notation JSON object back to nested structure
+   */
+  static unflattenJson(flatJsonStr: string): string {
+    if (!flatJsonStr || !flatJsonStr.trim()) return '{}';
+    let flatObj: any;
+    try {
+      flatObj = JSON.parse(flatJsonStr);
+    } catch (e: any) {
+      throw new Error(`Ошибка парсинга JSON: ${e.message}`);
+    }
+
+    if (typeof flatObj !== 'object' || flatObj === null || Array.isArray(flatObj)) {
+      return flatJsonStr;
+    }
+
+    const result: Record<string, any> = {};
+    for (const key of Object.keys(flatObj)) {
+      const keys = key.split('.');
+      let current = result;
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (i === keys.length - 1) {
+          current[k] = flatObj[key];
+        } else {
+          if (!current[k] || typeof current[k] !== 'object') {
+            current[k] = {};
+          }
+          current = current[k];
+        }
+      }
+    }
+
+    return JSON.stringify(result, null, 2);
+  }
+
+  /**
+   * RFC 4122 v4 UUID Generator
+   */
+  static generateUuid(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c: any) =>
+      (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
+    );
+  }
+
+  /**
+   * Convert Color (HEX, RGB, HSL)
+   */
+  static convertColor(colorStr: string, targetFormat: 'hex' | 'rgb' | 'hsl'): string {
+    if (!colorStr || !colorStr.trim()) throw new Error('Цветовая строка пуста');
+    const str = colorStr.trim().toLowerCase();
+
+    let r = 0, g = 0, b = 0;
+
+    // Hex
+    if (str.startsWith('#')) {
+      const hex = str.slice(1);
+      if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+      } else if (hex.length === 6) {
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      } else {
+        throw new Error('Невалидный HEX формат (требуется #RGB или #RRGGBB)');
+      }
+    } else if (str.startsWith('rgb')) {
+      const match = str.match(/\d+/g);
+      if (!match || match.length < 3) throw new Error('Невалидный RGB формат (например rgb(255, 0, 0))');
+      r = Math.min(255, parseInt(match[0], 10));
+      g = Math.min(255, parseInt(match[1], 10));
+      b = Math.min(255, parseInt(match[2], 10));
+    } else {
+      throw new Error('Неподдерживаемый исходный формат цвета (поддерживается #HEX или rgb())');
+    }
+
+    if (targetFormat === 'hex') {
+      const toHex = (n: number) => n.toString(16).padStart(2, '0');
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+
+    if (targetFormat === 'rgb') {
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    // HSL
+    const rNorm = r / 255;
+    const gNorm = g / 255;
+    const bNorm = b / 255;
+    const max = Math.max(rNorm, gNorm, bNorm);
+    const min = Math.min(rNorm, gNorm, bNorm);
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case rNorm: h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0); break;
+        case gNorm: h = (bNorm - rNorm) / d + 2; break;
+        case bNorm: h = (rNorm - gNorm) / d + 4; break;
+      }
+      h /= 6;
+    }
+
+    return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
+  }
+
+  /**
+   * Convert Timestamp between Unix (sec/ms) and ISO Date
+   */
+  static convertTimestamp(input: string | number): { iso: string; unixSec: number; unixMs: number; readable: string } {
+    if (input === undefined || input === null || input === '') {
+      throw new Error('Ввод времени пуст');
+    }
+
+    let date: Date;
+
+    if (typeof input === 'number' || !isNaN(Number(input))) {
+      const num = Number(input);
+      // Seconds vs MS heuristic
+      date = num > 1e11 ? new Date(num) : new Date(num * 1000);
+    } else {
+      date = new Date(input);
+    }
+
+    if (isNaN(date.getTime())) {
+      throw new Error('Невалидный штамп времени или дата');
+    }
+
+    return {
+      iso: date.toISOString(),
+      unixSec: Math.floor(date.getTime() / 1000),
+      unixMs: date.getTime(),
+      readable: date.toLocaleString('ru-RU', { dateStyle: 'full', timeStyle: 'medium' })
+    };
+  }
 }
+
 
