@@ -178,7 +178,7 @@ export default function App() {
       }
     } catch (e: any) {
       showToast('error', `Исключение при сохранении: ${e.message}`);
-    } fontFinally: {
+    } finally {
       setIsSaving(false);
     }
   };

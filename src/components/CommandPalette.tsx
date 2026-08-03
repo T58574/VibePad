@@ -43,6 +43,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'url-decode', name: 'URL Decode String', icon: Globe, action: () => onTransformContent(DevTools.urlDecode) },
     { id: 'html-escape', name: 'Escape HTML Special Characters', icon: Code, action: () => onTransformContent(DevTools.escapeHtml) },
     { id: 'html-unescape', name: 'Unescape HTML Entities', icon: Code, action: () => onTransformContent(DevTools.unescapeHtml) },
+    { id: 'json-yaml', name: 'Convert JSON to YAML', icon: Code, action: () => onTransformContent(DevTools.jsonToYaml) },
+    { id: 'yaml-json', name: 'Convert YAML to JSON', icon: Code, action: () => onTransformContent(DevTools.yamlToJson) },
+    { id: 'jwt-gen', name: 'Generate Mock Signed JWT Token', icon: KeyRound, action: () => onTransformContent((c) => DevTools.generateJwtPayload(c || { sub: 'user-123', role: 'admin' })) },
+    { id: 'hash-sha256', name: 'Calculate SHA-256 Hash', icon: ShieldCheck, action: () => onTransformContent((c) => {
+        DevTools.hashSha256(c).then((h) => onTransformContent(() => h));
+        return 'Вычисление SHA-256...';
+      }) 
+    },
+    { id: 'code-complexity', name: 'Analyze Code Complexity & Maintainability Index', icon: Activity, action: () => onTransformContent((c) => {
+        const stats = DevTools.calculateCodeComplexity(c);
+        return `// VibePad Code Complexity Report\n// Total Lines: ${stats.totalLines}\n// Code Lines: ${stats.codeLines}\n// Comment Lines: ${stats.commentLines}\n// Cyclomatic Complexity Score: ${stats.complexityScore}\n// Max Nesting Depth: ${stats.maxDepth}\n// Maintainability Index (0-100): ${stats.maintainabilityIndex}/100\n\n${c}`;
+      })
+    },
     { id: 'toggle-markdown', name: 'Toggle Markdown Preview (Ctrl+E)', icon: FileText, action: onToggleMarkdown },
     { id: 'toggle-diff', name: 'Toggle Split-View Diff (Ctrl+Shift+D)', icon: Code, action: onToggleDiff },
     { id: 'register-win', name: 'Integrate into Windows Explorer Context Menu', icon: ShieldCheck, action: onRegisterWindows },

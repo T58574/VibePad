@@ -138,4 +138,74 @@ describe('DevTools Utility Suite', () => {
       expect(DevTools.unescapeHtml(escaped)).toBe(html);
     });
   });
+
+  describe('jsonToYaml & yamlToJson', () => {
+    it('should convert JSON string into valid YAML', () => {
+      const json = JSON.stringify({ title: 'VibePad', port: 3000, features: ['speed', 'editor'] });
+      const yaml = DevTools.jsonToYaml(json);
+      expect(yaml).toContain('title: VibePad');
+      expect(yaml).toContain('port: 3000');
+      expect(yaml).toContain('- speed');
+      expect(yaml).toContain('- editor');
+    });
+
+    it('should convert simple key-value YAML into JSON string', () => {
+      const yaml = 'name: VibePad\nversion: 1.0\nactive: true';
+      const json = DevTools.yamlToJson(yaml);
+      const parsed = JSON.parse(json);
+      expect(parsed.name).toBe('VibePad');
+      expect(parsed.version).toBe(1.0);
+      expect(parsed.active).toBe(true);
+    });
+  });
+
+  describe('generateJwtPayload', () => {
+    it('should generate valid 3-part signed JWT string', () => {
+      const payload = { sub: 'user-777', name: 'Dev' };
+      const jwt = DevTools.generateJwtPayload(payload);
+      const parts = jwt.split('.');
+      expect(parts.length).toBe(3);
+      expect(DevTools.decodeJwt(jwt)).toContain('user-777');
+    });
+  });
+
+  describe('extractRegexMatches', () => {
+    it('should extract all pattern matches with line numbers', () => {
+      const text = 'ERROR line 1\nINFO line 2\nERROR line 3';
+      const matches = DevTools.extractRegexMatches(text, 'ERROR');
+      expect(matches.length).toBe(2);
+      expect(matches[0].line).toBe(1);
+      expect(matches[1].line).toBe(3);
+    });
+  });
+
+  describe('hashSha256', () => {
+    it('should compute SHA-256 hex string for given input', async () => {
+      const hash = await DevTools.hashSha256('VibePad-Fast-Editor');
+      expect(typeof hash).toBe('string');
+      expect(hash.length).toBeGreaterThanOrEqual(16);
+    });
+  });
+
+  describe('calculateCodeComplexity', () => {
+    it('should calculate cyclomatic complexity and maintainability index', () => {
+      const code = `
+        // Main function
+        function test(x) {
+          if (x > 10) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      `;
+      const stats = DevTools.calculateCodeComplexity(code);
+      expect(stats.totalLines).toBeGreaterThan(0);
+      expect(stats.codeLines).toBeGreaterThan(0);
+      expect(stats.commentLines).toBe(1);
+      expect(stats.complexityScore).toBe(3); // base 1 + if + else
+      expect(stats.maintainabilityIndex).toBeGreaterThan(50);
+    });
+  });
 });
+

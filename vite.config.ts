@@ -17,5 +17,24 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@codemirror') || id.includes('@lezer')) {
+              return 'codemirror-vendor';
+            }
+            if (id.includes('katex') || id.includes('highlight.js') || id.includes('markdown-it')) {
+              return 'markdown-vendor';
+            }
+            if (id.includes('react') || id.includes('react-dom') || id.includes('lucide-react')) {
+              return 'react-vendor';
+            }
+            return 'vendor';
+          }
+        },
+      },
+    },
   },
 });

@@ -77,13 +77,26 @@ export const QuickContextBar: React.FC<QuickContextBarProps> = ({
       )}
 
       {isJsonLike && (
-        <button
-          onClick={handleJsonToTs}
-          className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-indigo-300 transition text-[11px] font-mono"
-          title="Сгенерировать TS Interface из JSON"
-        >
-          JSON➔TS
-        </button>
+        <>
+          <button
+            onClick={handleJsonToTs}
+            className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-indigo-300 transition text-[11px] font-mono"
+            title="Сгенерировать TS Interface из JSON"
+          >
+            JSON➔TS
+          </button>
+          <button
+            onClick={() => {
+              try {
+                onReplaceSelection(DevTools.jsonToYaml(trimmed));
+              } catch {}
+            }}
+            className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-indigo-300 transition text-[11px] font-mono"
+            title="Конвертировать JSON в YAML"
+          >
+            JSON➔YAML
+          </button>
+        </>
       )}
 
       {isSqlLike && (
@@ -109,6 +122,18 @@ export const QuickContextBar: React.FC<QuickContextBarProps> = ({
         title="Декодировать UTF-8 Base64"
       >
         b64Dec
+      </button>
+      <button
+        onClick={async () => {
+          try {
+            const h = await DevTools.hashSha256(selection);
+            onReplaceSelection(h);
+          } catch {}
+        }}
+        className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-cyan-300 transition text-[11px] font-mono"
+        title="SHA-256 Хэш выделения"
+      >
+        SHA256
       </button>
 
       <button

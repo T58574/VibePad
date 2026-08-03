@@ -319,4 +319,260 @@ export class DevTools {
       .replace(/&gt;/g, '>')
       .replace(/&amp;/g, '&');
   }
+
+  /**
+   * Simple JSON to YAML converter
+   */
+  static jsonToYaml(jsonStr: string): string {
+    if (!jsonStr || !jsonStr.trim()) return '';
+    let obj: any;
+    try {
+      obj = JSON.parse(jsonStr);
+    } catch (e: any) {
+      throw new Error(`Ошибка парсинга JSON: ${e.message}`);
+    }
+
+    const stringifyYaml = (val: any, depth = 0): string => {
+      const indent = '  '.repeat(depth);
+      if (val === null || val === undefined) return 'null';
+      if (typeof val === 'boolean' || typeof val === 'number') return String(val);
+      if (typeof val === 'string') {
+        if (val.includes('\n') || val.includes(':') || val.includes('#')) {
+          return `"${val.replace(/"/g, '\\"')}"`;
+        }
+        return val;
+      }
+      if (Array.isArray(val)) {
+        if (val.length === 0) return '[]';
+        return val
+          .map((item) => {
+            if (typeof item === 'object' && item !== null) {
+              const inner = stringifyYaml(item, depth + 1).trimStart();
+              return `${indent}- ${inner}`;
+            }
+            return `${indent}- ${stringifyYaml(item, 0)}`;
+          })
+          .join('\n');
+      }
+      if (typeof val === 'object') {
+        const keys = Object.keys(val);
+        if (keys.length === 0) return '{}';
+        return keys
+          .map((k) => {
+            const v = val[k];
+            if (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length > 0) {
+              return `${indent}${k}:\n${stringifyYaml(v, depth + 1)}`;
+            }
+            if (Array.isArray(v) && v.length > 0) {
+              return `${indent}${k}:\n${stringifyYaml(v, depth + 1)}`;
+            }
+            return `${indent}${k}: ${stringifyYaml(v, 0)}`;
+          })
+          .join('\n');
+      }
+      return String(val);
+    };
+
+    return stringifyYaml(obj);
+  }
+
+  /**
+   * Simple YAML to JSON converter (Key-Value & list parser)
+   */
+  static yamlToJson(yamlStr: string): string {
+    if (!yamlStr || !yamlStr.trim()) return '{}';
+
+    const parseLineValue = (rawVal: string): any => {
+      const v = rawVal.trim();
+      if (v === 'null' || v === '~') return null;
+      if (v === 'true') return true;
+      if (v === 'false') return false;
+      if (!isNaN(Number(v)) && v !== '') return Number(v);
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        return v.slice(1, -1);
+      }
+      return v;
+    };
+
+    const lines = yamlStr.split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
+    const result: Record<string, any> = {};
+
+    for (const line of lines) {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx !== -1) {
+        const key = line.slice(0, colonIdx).trim().replace(/^["']|["']$/g, '');
+        const valStr = line.slice(colonIdx + 1).trim();
+        if (key) {
+          result[key] = valStr ? parseLineValue(valStr) : null;
+        }
+      }
+    }
+
+    return JSON.stringify(result, null, 2);
+  }
+
+  /**
+   * Generate mock signed JWT token string from payload object or string
+   */
+  static generateJwtPayload(payload: Record<string, any> | string, customHeader?: Record<string, any>): string {
+    const header = customHeader || { alg: 'HS256', typ: 'JWT' };
+    const payloadObj = typeof payload === 'string' ? JSON.parse(payload) : payload;
+
+    const encodeBase64Url = (obj: any): string => {
+      const str = JSON.stringify(obj);
+      return this.base64Encode(str)
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+    };
+
+    const encodedHeader = encodeBase64Url(header);
+    const encodedPayload = encodeBase64Url(payloadObj);
+    const mockSignature = encodeBase64Url({ signature: 'vibepad-mock-signature-' + Date.now() });
+
+    return `${encodedHeader}.${encodedPayload}.${mockSignature}`;
+  }
+
+  /**
+   * Extract Regex pattern matches with detailed locations and line numbers
+   */
+  static extractRegexMatches(
+    input: string,
+    patternStr: string,
+    flags: string = 'g'
+  ): Array<{ match: string; index: number; line: number }> {
+    if (!input || !patternStr) return [];
+
+    let regex: RegExp;
+    try {
+      const cleanFlags = flags.includes('g') ? flags : flags + 'g';
+      regex = new RegExp(patternStr, cleanFlags);
+    } catch (e: any) {
+      throw new Error(`Невалидный Regex: ${e.message}`);
+    }
+
+    const results: Array<{ match: string; index: number; line: number }> = [];
+    const lines = input.split('\n');
+
+    let match: RegExpExecArray | null;
+    let maxSafety = 1000;
+
+    while ((match = regex.exec(input)) !== null && maxSafety-- > 0) {
+      const matchIndex = match.index;
+      let charCount = 0;
+      let lineNum = 1;
+
+      for (let i = 0; i < lines.length; i++) {
+        charCount += lines[i].length + 1;
+        if (matchIndex < charCount) {
+          lineNum = i + 1;
+          break;
+        }
+      }
+
+      results.push({
+        match: match[0],
+        index: matchIndex,
+        line: lineNum,
+      });
+
+      if (match[0].length === 0) regex.lastIndex++;
+    }
+
+    return results;
+  }
+
+  /**
+   * Calculate SHA-256 hash string (using Web Crypto API or Node fallback)
+   */
+  static async hashSha256(input: string): Promise<string> {
+    if (typeof input !== 'string') return '';
+    
+    // Web Crypto API
+    if (typeof crypto !== 'undefined' && crypto.subtle && typeof crypto.subtle.digest === 'function') {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(input);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Fallback: simple numeric checksum hex string if Web Crypto is unavailable
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(16).padStart(64, '0');
+  }
+
+  /**
+   * Calculate Code Complexity & Maintainability Score
+   */
+  static calculateCodeComplexity(code: string): {
+    totalLines: number;
+    codeLines: number;
+    commentLines: number;
+    maxDepth: number;
+    complexityScore: number;
+    maintainabilityIndex: number;
+  } {
+    if (!code) {
+      return { totalLines: 0, codeLines: 0, commentLines: 0, maxDepth: 0, complexityScore: 0, maintainabilityIndex: 100 };
+    }
+
+    const lines = code.split('\n');
+    let codeLines = 0;
+    let commentLines = 0;
+    let maxDepth = 0;
+    let currentDepth = 0;
+    let decisionPoints = 1; // Base complexity
+
+    const decisionRegex = /\b(if|else|switch|case|for|while|catch|&&|\|\||\?)\b/;
+
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed.startsWith('#')) {
+        commentLines++;
+        return;
+      }
+
+      codeLines++;
+
+      // Depth tracking
+      for (const char of trimmed) {
+        if (char === '{' || char === '(') {
+          currentDepth++;
+          if (currentDepth > maxDepth) maxDepth = currentDepth;
+        } else if (char === '}' || char === ')') {
+          if (currentDepth > 0) currentDepth--;
+        }
+      }
+
+      // Decision points (cyclomatic complexity)
+      if (decisionRegex.test(trimmed)) {
+        decisionPoints++;
+      }
+    });
+
+    const totalLines = lines.length;
+    const commentRatio = codeLines > 0 ? commentLines / codeLines : 0;
+    
+    // Maintainability Index (0 to 100 scale)
+    const rawIndex = 171 - 5.2 * Math.log(decisionPoints) - 0.23 * (codeLines || 1) + 50 * Math.sin(Math.sqrt(commentRatio));
+    const maintainabilityIndex = Math.min(100, Math.max(0, Math.round(rawIndex)));
+
+    return {
+      totalLines,
+      codeLines,
+      commentLines,
+      maxDepth,
+      complexityScore: decisionPoints,
+      maintainabilityIndex,
+    };
+  }
 }
+

@@ -314,6 +314,89 @@ export default function App() {
 }
 `,
       },
+      {
+        id: 'k8s-deployment',
+        title: 'Kubernetes Deployment & Service',
+        category: 'Docker',
+        filename: 'k8s-deployment.yaml',
+        description: 'Production K8s deployment manifest with ingress & health probes',
+        content: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vibepad-app
+  labels:
+    app: vibepad
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vibepad
+  template:
+    metadata:
+      labels:
+        app: vibepad
+    spec:
+      containers:
+      - name: vibepad
+        image: vibepad/app:latest
+        ports:
+        - containerPort: 3456
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vibepad-service
+spec:
+  type: ClusterIP
+  selector:
+    app: vibepad
+  ports:
+  - port: 80
+    targetPort: 3456
+`,
+      },
+      {
+        id: 'fastapi-async',
+        title: 'FastAPI Async Microservice',
+        category: 'API',
+        filename: 'main.py',
+        description: 'Async Python FastAPI microservice with CORS & Pydantic models',
+        content: `from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
+
+app = FastAPI(title="VibePad High-Performance Microservice", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class DocumentPayload(BaseModel):
+    title: str
+    content: str
+    tags: Optional[List[str]] = []
+
+@app.get("/health")
+async def health_check():
+    return {"status": "online", "vibe": "100%"}
+
+@app.post("/api/v1/process")
+async def process_doc(payload: DocumentPayload):
+    return {
+        "title": payload.title,
+        "char_count": len(payload.content),
+        "status": "processed"
+    }
+`,
+      },
     ];
   }
 

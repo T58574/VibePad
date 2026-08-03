@@ -1,7 +1,8 @@
 import React from 'react';
-import { X, Activity, Cpu, FileText, Zap, BarChart3, Clock, CheckCircle } from 'lucide-react';
+import { X, Activity, Cpu, FileText, Zap, BarChart3, Clock, CheckCircle, Code } from 'lucide-react';
 import { FileItem } from '../utils/ipcBridge';
 import { SaaSFeatures } from '../utils/saasFeatures';
+import { DevTools } from '../utils/devTools';
 
 interface SaaSProductivityModalProps {
   tabs: FileItem[];
@@ -116,6 +117,45 @@ export const SaaSProductivityModal: React.FC<SaaSProductivityModalProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Active File Code Complexity & Maintainability */}
+          {activeFile && (
+            (() => {
+              const complexity = DevTools.calculateCodeComplexity(activeFile.content);
+              return (
+                <div className="bg-[#0f1117] p-4 rounded-xl border border-vibe-border/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-vibe-muted uppercase tracking-wider flex items-center gap-1.5">
+                      <Code className="w-3.5 h-3.5 text-indigo-400" /> Анализ сложности кода ({activeFile.name})
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
+                      complexity.maintainabilityIndex > 70
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : complexity.maintainabilityIndex > 40
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}>
+                      Maintainability: {complexity.maintainabilityIndex}/100
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-[#141720] p-2 rounded border border-vibe-border/30">
+                      <span className="text-[10px] text-vibe-muted block">Строк кода / Комментариев</span>
+                      <span className="font-mono text-slate-200">{complexity.codeLines} / {complexity.commentLines}</span>
+                    </div>
+                    <div className="bg-[#141720] p-2 rounded border border-vibe-border/30">
+                      <span className="text-[10px] text-vibe-muted block">Цикломатическая сложность</span>
+                      <span className="font-mono text-indigo-400 font-semibold">{complexity.complexityScore}</span>
+                    </div>
+                    <div className="bg-[#141720] p-2 rounded border border-vibe-border/30">
+                      <span className="text-[10px] text-vibe-muted block">Макс. Вложенность</span>
+                      <span className="font-mono text-cyan-400 font-semibold">{complexity.maxDepth}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
 
           {/* Active File Metadata */}
           {activeFile && (
