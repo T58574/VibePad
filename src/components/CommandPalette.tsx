@@ -56,6 +56,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         return `// VibePad Code Complexity Report\n// Total Lines: ${stats.totalLines}\n// Code Lines: ${stats.codeLines}\n// Comment Lines: ${stats.commentLines}\n// Cyclomatic Complexity Score: ${stats.complexityScore}\n// Max Nesting Depth: ${stats.maxDepth}\n// Maintainability Index (0-100): ${stats.maintainabilityIndex}/100\n\n${c}`;
       })
     },
+    { id: 'cron-humanize', name: 'Humanize Cron Expression (5-field format)', icon: Activity, action: () => onTransformContent(DevTools.humanizeCron) },
+    { id: 'env-format', name: 'Format & Sort Environment (.env) Variables', icon: FileText, action: () => onTransformContent((c) => DevTools.formatEnvFile(c).formatted) },
+    { id: 'md-table-format', name: 'Format & Align Markdown Table Columns', icon: Table, action: () => onTransformContent(DevTools.formatMarkdownTable) },
+    { id: 'file-perf-analyze', name: 'Analyze File Performance & Safe Mode Guard', icon: Activity, action: () => onTransformContent((c) => {
+        const stats = DevTools.analyzeFilePerformance(c, 'file');
+        return `// VibePad Performance & Safe Guard Report\n// Size: ${(stats.sizeBytes / 1024).toFixed(2)} KB\n// Lines: ${stats.totalLines}\n// Max Line Length: ${stats.maxLineLength} chars\n// Is Large (>10MB / 50k lines): ${stats.isLargeFile ? 'YES' : 'NO'}\n// Binary Risk: ${stats.isBinary ? 'YES' : 'NO'}\n// Recommended Mode: ${stats.recommendedMode}\n\n${c}`;
+      })
+    },
     { id: 'toggle-markdown', name: 'Toggle Markdown Preview (Ctrl+E)', icon: FileText, action: onToggleMarkdown },
     { id: 'toggle-diff', name: 'Toggle Split-View Diff (Ctrl+Shift+D)', icon: Code, action: onToggleDiff },
     { id: 'register-win', name: 'Integrate into Windows Explorer Context Menu', icon: ShieldCheck, action: onRegisterWindows },

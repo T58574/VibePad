@@ -92,4 +92,44 @@ describe('SaaSFeatures Utility Suite', () => {
       expect(() => SaaSFeatures.saveCustomSnippet({ title: 'T', category: 'Config', filename: 't.txt', description: '', content: '' })).toThrow(/Содержимое шаблона обязательно/);
     });
   });
+
+  describe('generateWorkspacePreset', () => {
+    it('should generate multi-tab workspace preset files for FullstackNode', () => {
+      const tabs = SaaSFeatures.generateWorkspacePreset('FullstackNode');
+      expect(tabs.length).toBe(4);
+      expect(tabs.map((t) => t.name)).toContain('App.tsx');
+      expect(tabs.map((t) => t.name)).toContain('schema.sql');
+      expect(tabs.map((t) => t.name)).toContain('docker-compose.yml');
+      expect(tabs.map((t) => t.name)).toContain('.env.production');
+    });
+
+    it('should generate workspace preset files for PythonFastAPI and DevOps', () => {
+      const pythonTabs = SaaSFeatures.generateWorkspacePreset('PythonFastAPI');
+      expect(pythonTabs.length).toBe(3);
+      expect(pythonTabs.map((t) => t.name)).toContain('main.py');
+
+      const devOpsTabs = SaaSFeatures.generateWorkspacePreset('DevOps');
+      expect(devOpsTabs.length).toBe(3);
+      expect(devOpsTabs.map((t) => t.name)).toContain('k8s-deployment.yaml');
+    });
+  });
+
+  describe('diffWorkspaceSessions', () => {
+    it('should correctly identify added, removed, and modified files between session states', () => {
+      const oldTabs: FileItem[] = [
+        { id: '1', name: 'app.js', path: 'app.js', content: 'console.log(1)', encoding: 'UTF-8', lineEnding: 'LF' },
+        { id: '2', name: 'config.json', path: 'config.json', content: '{"port": 80}', encoding: 'UTF-8', lineEnding: 'LF' },
+      ];
+
+      const newTabs: FileItem[] = [
+        { id: '1', name: 'app.js', path: 'app.js', content: 'console.log(2)', encoding: 'UTF-8', lineEnding: 'LF' }, // modified
+        { id: '3', name: 'README.md', path: 'README.md', content: '# Docs', encoding: 'UTF-8', lineEnding: 'LF' }, // added
+      ];
+
+      const diff = SaaSFeatures.diffWorkspaceSessions(oldTabs, newTabs);
+      expect(diff.added).toEqual(['README.md']);
+      expect(diff.removed).toEqual(['config.json']);
+      expect(diff.modified).toEqual(['app.js']);
+    });
+  });
 });

@@ -28,6 +28,8 @@ export const QuickContextBar: React.FC<QuickContextBarProps> = ({
 
   const isJsonLike = (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
   const isSqlLike = /\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\b/i.test(trimmed);
+  const isCronLike = /^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(trimmed);
+  const isMdTableLike = trimmed.includes('|') && trimmed.includes('\n');
 
   const handleDecodeBase64 = () => {
     try {
@@ -106,6 +108,34 @@ export const QuickContextBar: React.FC<QuickContextBarProps> = ({
           title="Форматировать SQL запрос"
         >
           SQL Format
+        </button>
+      )}
+
+      {isCronLike && (
+        <button
+          onClick={() => {
+            try {
+              onReplaceSelection(DevTools.humanizeCron(trimmed));
+            } catch {}
+          }}
+          className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-amber-300 transition text-[11px] font-mono"
+          title="Расшифровать Cron выражение"
+        >
+          Cron➔Human
+        </button>
+      )}
+
+      {isMdTableLike && (
+        <button
+          onClick={() => {
+            try {
+              onReplaceSelection(DevTools.formatMarkdownTable(trimmed));
+            } catch {}
+          }}
+          className="hover:bg-indigo-600/30 px-1.5 py-0.5 rounded text-emerald-300 transition text-[11px] font-mono"
+          title="Выравнять таблицы Markdown"
+        >
+          Align Table
         </button>
       )}
 

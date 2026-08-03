@@ -574,5 +574,205 @@ export class DevTools {
       maintainabilityIndex,
     };
   }
+
+  /**
+   * Humanize Cron Expression (5-field standard)
+   */
+  static humanizeCron(cronExpr: string): string {
+    if (!cronExpr || typeof cronExpr !== 'string') throw new Error('Строка cron пуста');
+    const parts = cronExpr.trim().split(/\s+/);
+    if (parts.length !== 5) {
+      throw new Error('Некорректное число полей cron (требуется ровно 5 полей: мин час день мес день_недели)');
+    }
+
+    const [min, hour, dom, month, dow] = parts;
+
+    let text = '';
+
+    // Minute
+    if (min === '*') text += 'Каждую минуту';
+    else if (min.startsWith('*/')) text += `Каждые ${min.slice(2)} мин`;
+    else text += `В ${min.padStart(2, '0')} мин`;
+
+    // Hour
+    if (hour === '*') {
+      if (!min.startsWith('*/') && min !== '*') text += ' каждого часа';
+    } else if (hour.startsWith('*/')) {
+      text += `, каждые ${hour.slice(2)} ч`;
+    } else {
+      text += `, в ${hour.padStart(2, '0')}:00`;
+    }
+
+    // Day of month
+    if (dom !== '*') {
+      if (dom.startsWith('*/')) text += `, каждые ${dom.slice(2)} дн. месяца`;
+      else text += `, ${dom}-го числа месяца`;
+    }
+
+    // Month
+    if (month !== '*') {
+      const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+      const mIdx = parseInt(month, 10) - 1;
+      if (months[mIdx]) text += ` (${months[mIdx]})`;
+      else text += ` (месяц ${month})`;
+    }
+
+    // Day of week
+    if (dow !== '*') {
+      const daysMap: Record<string, string> = {
+        '0': 'Вс', '1': 'Пн', '2': 'Вт', '3': 'Ср', '4': 'Чт', '5': 'Пт', '6': 'Сб', '7': 'Вс',
+        '1-5': 'Пн-Пт', '0-6': 'Вс-Сб', '6-0': 'Сб-Вс'
+      };
+      const dayStr = daysMap[dow] || `дни недели [${dow}]`;
+      text += `, дни: ${dayStr}`;
+    }
+
+    return text;
+  }
+
+  /**
+   * Format & Sort Environment Variable (.env) file
+   */
+  static formatEnvFile(envContent: string): { formatted: string; keysCount: number; parsedJson: Record<string, string> } {
+    if (!envContent || typeof envContent !== 'string') {
+      return { formatted: '', keysCount: 0, parsedJson: {} };
+    }
+
+    const lines = envContent.split(/\r?\n/);
+    const envPairs: Array<{ key: string; val: string; comment?: string }> = [];
+    const parsedJson: Record<string, string> = {};
+
+    let currentComment = '';
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      if (line.startsWith('#')) {
+        currentComment = currentComment ? `${currentComment}\n${line}` : line;
+        continue;
+      }
+
+      const eqIdx = line.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = line.slice(0, eqIdx).trim();
+        const val = line.slice(eqIdx + 1).trim();
+        if (key) {
+          envPairs.push({ key, val, comment: currentComment || undefined });
+          parsedJson[key] = val.replace(/^["']|["']$/g, '');
+          currentComment = '';
+        }
+      }
+    }
+
+    // Sort alphabetically by key name
+    envPairs.sort((a, b) => a.key.localeCompare(b.key));
+
+    const formattedLines: string[] = [];
+    for (const pair of envPairs) {
+      if (pair.comment) formattedLines.push(pair.comment);
+      formattedLines.push(`${pair.key}=${pair.val}`);
+    }
+
+    return {
+      formatted: formattedLines.join('\n'),
+      keysCount: envPairs.length,
+      parsedJson
+    };
+  }
+
+  /**
+   * Align Markdown Table columns nicely with space padding
+   */
+  static formatMarkdownTable(tableMd: string): string {
+    if (!tableMd || !tableMd.trim()) return '';
+
+    const lines = tableMd.trim().split(/\r?\n/).filter(l => l.trim().includes('|'));
+    if (lines.length < 2) return tableMd;
+
+    const rows = lines.map(line =>
+      line
+        .trim()
+        .replace(/^\||\|$/g, '')
+        .split('|')
+        .map(cell => cell.trim())
+    );
+
+    const numCols = Math.max(...rows.map(r => r.length));
+    const colWidths = new Array(numCols).fill(3);
+
+    rows.forEach((row, rowIdx) => {
+      if (rowIdx === 1 && row.every(cell => cell.startsWith('-'))) return;
+
+      row.forEach((cell, colIdx) => {
+        if (cell.length > colWidths[colIdx]) {
+          colWidths[colIdx] = cell.length;
+        }
+      });
+    });
+
+    const formatRow = (cells: string[]) => {
+      const padded = cells.map((cell, idx) => {
+        const width = colWidths[idx] || 3;
+        return cell.padEnd(width, ' ');
+      });
+      return `| ${padded.join(' | ')} |`;
+    };
+
+    const formattedRows: string[] = [];
+
+    // Header
+    formattedRows.push(formatRow(rows[0]));
+
+    // Delimiter line
+    const delimiterCells = colWidths.map(w => '-'.repeat(w));
+    formattedRows.push(`| ${delimiterCells.join(' | ')} |`);
+
+    // Data rows
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      while (row.length < numCols) row.push('');
+      formattedRows.push(formatRow(row.slice(0, numCols)));
+    }
+
+    return formattedRows.join('\n');
+  }
+
+  /**
+   * Analyze file performance metrics for large file guard
+   */
+  static analyzeFilePerformance(content: string, fileName: string): {
+    sizeBytes: number;
+    totalLines: number;
+    maxLineLength: number;
+    isLargeFile: boolean;
+    isBinary: boolean;
+    recommendedMode: 'Standard' | 'Safe Performance Mode' | 'Binary Warning';
+  } {
+    const sizeBytes = new TextEncoder().encode(content || '').length;
+    const lines = (content || '').split('\n');
+    const totalLines = lines.length;
+    let maxLineLength = 0;
+
+    for (let i = 0; i < Math.min(lines.length, 5000); i++) {
+      if (lines[i].length > maxLineLength) maxLineLength = lines[i].length;
+    }
+
+    const isBinary = (content || '').slice(0, 1000).includes('\0');
+    const isLargeFile = sizeBytes > 10 * 1024 * 1024 || totalLines > 50000;
+
+    let recommendedMode: 'Standard' | 'Safe Performance Mode' | 'Binary Warning' = 'Standard';
+    if (isBinary) recommendedMode = 'Binary Warning';
+    else if (isLargeFile) recommendedMode = 'Safe Performance Mode';
+
+    return {
+      sizeBytes,
+      totalLines,
+      maxLineLength,
+      isLargeFile,
+      isBinary,
+      recommendedMode
+    };
+  }
 }
 

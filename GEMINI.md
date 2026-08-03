@@ -15,7 +15,7 @@
 
 - **Core Editor Engine**: CodeMirror 6 (виртуализированный скроллинг для гигантских логов, мультикурсоры, подсветка синтаксиса JS/TS/SQL/Python/YAML/JSON/Markdown, line wrapping).
 - **UI Framework**: React 18 + Vite + Tailwind CSS (Glassmorphism dark theme в стиле Sublime / Linear).
-- **Automated Testing Suite**: Vitest + JSDOM (`npm run test`), 43/43 проходящих автотестов для утилит и SaaS функционала.
+- **Automated Testing Suite**: Vitest + JSDOM (`npm run test`), 57/57 проходящих автотестов для утилит, React компонентов и SaaS функционала.
 - **Resilience Layer**: React `ErrorBoundary` для перехвата рантайм-ошибок с дашбордом аварийного восстановления сессий без потери файлов.
 - **Markdown Engine**: `markdown-it` (с безопасной ленивой инициализацией) + `highlight.js` + `katex` (переключение по `Ctrl+E`).
 - **Native Host & Launcher**: Standalone Electron Runtime packaged via `electron-builder` into single **`VibePad.exe`**.
@@ -28,8 +28,8 @@
   - Запись во временные файлы `.vibetmp` с последующим `rename` (атомарное сохранение против повреждения файлов при сбоях).
 - **SaaS Features & DevTools Suite (`saasFeatures.ts` & `devTools.ts`)**:
   - **Vibe Productivity & Telemetry Dashboard (`Ctrl+Shift+S`)**: Метрики в реальном времени, RAM footprint, Vibe Index Score, статистика языков/строк и встроенная оценка сложности кода (Cyclomatic Complexity & Maintainability Index).
-  - **SaaS Snippet Vault & Custom Templates (`Ctrl+Shift+V`)**: Встроенный каталог шаблонов (Docker Compose, Kubernetes Manifest, Nginx, Postgres, OpenAPI, Vite React, FastAPI Python) + форма создания и локального сохранения собственных сниппетов.
-  - **Developer Tools**: Генератор TypeScript интерфейсов из JSON, JSON <-> YAML конвертер, JWT Генератор/Декодер, SHA-256 Хэш вычисления, Regex парсер с позиционированием, SQL Форматтер & Минификатор, конвертер cURL в `fetch()`, Unicode Base64, CSV -> Markdown Таблицы, URL/HTML Encode & Decode.
+  - **SaaS Snippet Vault & Workspace Presets (`Ctrl+Shift+V`)**: Встроенный каталог шаблонов + 1-click генератор готовых окружений (Fullstack Node, Python FastAPI, DevOps K8s) + пользовательские сниппеты.
+  - **Developer Tools**: Cron выражение в понятную речь (`humanizeCron`), автоматическое выравнивание Markdown таблиц (`formatMarkdownTable`), сортировщик и парсер `.env` файлов (`formatEnvFile`), анализатор производительности и бинарных файлов (`analyzeFilePerformance`), генератор TS типов, JSON<->YAML, JWT, SHA-256, SQL Форматтер, cURL->fetch.
   - **Cloud Sync & Session Transfer (`Ctrl+Shift+E` / Header)**: 1-click экспорт/импорт всей сессии в JSON и генерация GitHub Gist Share payload.
 - **Windows Explorer Integration**: Регистрация в реестре Windows (`HKCU\Software\Classes`):
   - Контекстное меню для любых файлов: **"Открыть в VibePad"** с иконкой приложения.

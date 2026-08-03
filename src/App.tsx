@@ -28,6 +28,7 @@ import { SaaSSnippetVaultModal } from './components/SaaSSnippetVaultModal';
 import { SaaSSessionExportModal } from './components/SaaSSessionExportModal';
 import { FileItem, IPCBridge } from './utils/ipcBridge';
 import { convertLineEnding } from './utils/encodings';
+import { SaaSFeatures } from './utils/saasFeatures';
 
 interface Toast {
   id: string;
@@ -555,6 +556,12 @@ export default function App() {
           onOpenInNewTab={(name, content) => {
             handleAddTab(name, content);
             showToast('success', `Создана новая вкладка: ${name}`);
+          }}
+          onLoadPresetWorkspace={(presetType) => {
+            const presetTabs = SaaSFeatures.generateWorkspacePreset(presetType);
+            setTabs((prev) => [...prev, ...presetTabs]);
+            if (presetTabs.length > 0) setActiveTabId(presetTabs[0].id);
+            showToast('success', `Загружено пресет-окружение (${presetTabs.length} вкладок): ${presetType}`);
           }}
           onClose={() => setIsSnippetVaultOpen(false)}
         />

@@ -207,5 +207,56 @@ describe('DevTools Utility Suite', () => {
       expect(stats.maintainabilityIndex).toBeGreaterThan(50);
     });
   });
+
+  describe('humanizeCron', () => {
+    it('should convert standard 5-field cron expression into human-readable Russian string', () => {
+      expect(DevTools.humanizeCron('*/15 * * * *')).toContain('Каждые 15 мин');
+      expect(DevTools.humanizeCron('0 9 * * 1-5')).toContain('В 00 мин, в 09:00, дни: Пн-Пт');
+    });
+
+    it('should throw error for invalid cron field count', () => {
+      expect(() => DevTools.humanizeCron('invalid cron')).toThrow(/Некорректное число полей cron/);
+    });
+  });
+
+  describe('formatEnvFile', () => {
+    it('should sort keys alphabetically and format .env content cleanly', () => {
+      const rawEnv = `
+# DB Config
+PORT=3000
+DATABASE_URL="postgres://localhost:5432/db"
+APP_NAME=VibePad
+`;
+      const res = DevTools.formatEnvFile(rawEnv);
+      expect(res.keysCount).toBe(3);
+      expect(res.parsedJson.APP_NAME).toBe('VibePad');
+      expect(res.formatted).toContain('APP_NAME=VibePad\nDATABASE_URL="postgres://localhost:5432/db"\n# DB Config\nPORT=3000');
+    });
+  });
+
+  describe('formatMarkdownTable', () => {
+    it('should align Markdown table columns with proper spacing', () => {
+      const messyTable = '| Name | Role |\n| --- | --- |\n| VibePad | Ultra Lightweight Editor |\n| CodeMirror | Engine |';
+      const formatted = DevTools.formatMarkdownTable(messyTable);
+      expect(formatted).toContain('| VibePad    | Ultra Lightweight Editor |');
+      expect(formatted).toContain('| CodeMirror | Engine                   |');
+    });
+  });
+
+  describe('analyzeFilePerformance', () => {
+    it('should calculate size, line counts, and recommend Standard mode for small files', () => {
+      const res = DevTools.analyzeFilePerformance('const x = 1;\nconsole.log(x);', 'test.js');
+      expect(res.totalLines).toBe(2);
+      expect(res.isLargeFile).toBe(false);
+      expect(res.isBinary).toBe(false);
+      expect(res.recommendedMode).toBe('Standard');
+    });
+
+    it('should detect binary bytes and suggest Binary Warning', () => {
+      const res = DevTools.analyzeFilePerformance('some text\0binary content', 'image.png');
+      expect(res.isBinary).toBe(true);
+      expect(res.recommendedMode).toBe('Binary Warning');
+    });
+  });
 });
 

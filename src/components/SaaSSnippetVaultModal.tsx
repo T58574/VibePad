@@ -5,12 +5,14 @@ import { SaaSFeatures, SaaSSnippet } from '../utils/saasFeatures';
 interface SaaSSnippetVaultModalProps {
   onInsertToCurrent: (content: string) => void;
   onOpenInNewTab: (name: string, content: string) => void;
+  onLoadPresetWorkspace?: (preset: 'FullstackNode' | 'PythonFastAPI' | 'DevOps') => void;
   onClose: () => void;
 }
 
 export const SaaSSnippetVaultModal: React.FC<SaaSSnippetVaultModalProps> = ({
   onInsertToCurrent,
   onOpenInNewTab,
+  onLoadPresetWorkspace,
   onClose,
 }) => {
   const [snippets, setSnippets] = useState<SaaSSnippet[]>(() => SaaSFeatures.getAllSnippets());
@@ -165,6 +167,44 @@ export const SaaSSnippetVaultModal: React.FC<SaaSSnippetVaultModalProps> = ({
               </button>
             </div>
           </form>
+        )}
+
+        {/* Quick Workspace Presets Bar */}
+        {onLoadPresetWorkspace && (
+          <div className="px-4 py-2.5 bg-[#12151f] border-b border-vibe-border/40 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+              ⚡ 1-Click Workspace Presets:
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  onLoadPresetWorkspace('FullstackNode');
+                  onClose();
+                }}
+                className="px-2.5 py-1 bg-indigo-950/60 border border-indigo-500/40 hover:bg-indigo-900/60 text-indigo-200 rounded text-xs transition"
+              >
+                📦 Fullstack Node
+              </button>
+              <button
+                onClick={() => {
+                  onLoadPresetWorkspace('PythonFastAPI');
+                  onClose();
+                }}
+                className="px-2.5 py-1 bg-cyan-950/60 border border-cyan-500/40 hover:bg-cyan-900/60 text-cyan-200 rounded text-xs transition"
+              >
+                🐍 Python FastAPI
+              </button>
+              <button
+                onClick={() => {
+                  onLoadPresetWorkspace('DevOps');
+                  onClose();
+                }}
+                className="px-2.5 py-1 bg-emerald-950/60 border border-emerald-500/40 hover:bg-emerald-900/60 text-emerald-200 rounded text-xs transition"
+              >
+                🚀 DevOps & K8s
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Filter Controls & Search */}

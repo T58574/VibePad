@@ -470,4 +470,81 @@ async def process_doc(payload: DocumentPayload):
   static getAllSnippets(): SaaSSnippet[] {
     return [...this.getCustomSnippets(), ...this.getBuiltInSnippets()];
   }
+
+  /**
+   * Generate curated workspace preset environment tabs
+   */
+  static generateWorkspacePreset(presetType: 'FullstackNode' | 'PythonFastAPI' | 'DevOps'): FileItem[] {
+    const timestamp = Date.now();
+    const snippets = this.getBuiltInSnippets();
+
+    if (presetType === 'FullstackNode') {
+      const docker = snippets.find(s => s.id === 'docker-compose-prod')?.content || '';
+      const postgres = snippets.find(s => s.id === 'postgres-schema')?.content || '';
+      const env = snippets.find(s => s.id === 'env-prod-template')?.content || '';
+      const react = snippets.find(s => s.id === 'vite-tailwind-ts')?.content || '';
+
+      return [
+        { id: `preset-${timestamp}-1`, name: 'App.tsx', path: 'src/App.tsx', content: react, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-2`, name: 'schema.sql', path: 'db/schema.sql', content: postgres, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-3`, name: 'docker-compose.yml', path: 'docker-compose.yml', content: docker, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-4`, name: '.env.production', path: '.env.production', content: env, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true }
+      ];
+    } else if (presetType === 'PythonFastAPI') {
+      const fastapi = snippets.find(s => s.id === 'fastapi-async')?.content || '';
+      const openapi = snippets.find(s => s.id === 'openapi-spec')?.content || '';
+      const docker = snippets.find(s => s.id === 'docker-compose-prod')?.content || '';
+
+      return [
+        { id: `preset-${timestamp}-1`, name: 'main.py', path: 'main.py', content: fastapi, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-2`, name: 'openapi.yaml', path: 'openapi.yaml', content: openapi, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-3`, name: 'docker-compose.yml', path: 'docker-compose.yml', content: docker, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true }
+      ];
+    } else {
+      const k8s = snippets.find(s => s.id === 'k8s-deployment')?.content || '';
+      const nginx = snippets.find(s => s.id === 'nginx-proxy')?.content || '';
+      const env = snippets.find(s => s.id === 'env-prod-template')?.content || '';
+
+      return [
+        { id: `preset-${timestamp}-1`, name: 'k8s-deployment.yaml', path: 'k8s/deployment.yaml', content: k8s, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-2`, name: 'nginx.conf', path: 'nginx/nginx.conf', content: nginx, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true },
+        { id: `preset-${timestamp}-3`, name: '.env.production', path: '.env.production', content: env, encoding: 'UTF-8', lineEnding: 'LF', isDirty: true }
+      ];
+    }
+  }
+
+  /**
+   * Compare two workspace sessions and produce session diff summary
+   */
+  static diffWorkspaceSessions(oldTabs: FileItem[], newTabs: FileItem[]): {
+    added: string[];
+    removed: string[];
+    modified: string[];
+  } {
+    const oldMap = new Map<string, string>();
+    oldTabs.forEach(t => oldMap.set(t.name, t.content));
+
+    const newMap = new Map<string, string>();
+    newTabs.forEach(t => newMap.set(t.name, t.content));
+
+    const added: string[] = [];
+    const removed: string[] = [];
+    const modified: string[] = [];
+
+    newMap.forEach((content, name) => {
+      if (!oldMap.has(name)) {
+        added.push(name);
+      } else if (oldMap.get(name) !== content) {
+        modified.push(name);
+      }
+    });
+
+    oldMap.forEach((_, name) => {
+      if (!newMap.has(name)) {
+        removed.push(name);
+      }
+    });
+
+    return { added, removed, modified };
+  }
 }
