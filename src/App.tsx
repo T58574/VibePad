@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   FileCode,
   FileText,
@@ -15,6 +15,10 @@ import {
   Activity,
   Layers,
   Share2,
+  FolderOpen,
+  PanelLeft,
+  Folder,
+  Trash2,
 } from 'lucide-react';
 import { Editor } from './components/Editor';
 import { MarkdownViewer } from './components/MarkdownViewer';
@@ -83,6 +87,11 @@ export default function App() {
   const [selection, setSelection] = useState('');
   const [selectionCoords, setSelectionCoords] = useState<{ x: number; y: number } | null>(null);
 
+  // Sidebar & Save As Modal State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSaveAsOpen, setIsSaveAsOpen] = useState(false);
+  const [saveAsInput, setSaveAsInput] = useState('');
+
   // SaaS Modals State
   const [isProductivityModalOpen, setIsProductivityModalOpen] = useState(false);
   const [isSnippetVaultOpen, setIsSnippetVaultOpen] = useState(false);
@@ -97,6 +106,69 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenFileClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const text = await file.text();
+        const lineEnding = text.includes('\r\n') ? 'CRLF' : 'LF';
+        const filePath = (file as any).path || file.name;
+        const newTab: FileItem = {
+          id: `tab-${Date.now()}-${i}`,
+          name: file.name,
+          path: filePath,
+          content: text,
+          encoding: 'UTF-8',
+          lineEnding,
+          isDirty: false,
+        };
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(newTab.id);
+        showToast('info', `Открыт файл: ${file.name}`);
+      } catch (err: any) {
+        showToast('error', `Не удалось открыть ${file.name}: ${err.message}`);
+      }
+    }
+    if (e.target) e.target.value = '';
+  };
+
+  const handleDropFiles = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const text = await file.text();
+        const lineEnding = text.includes('\r\n') ? 'CRLF' : 'LF';
+        const filePath = (file as any).path || file.name;
+        const newTab: FileItem = {
+          id: `tab-${Date.now()}-${i}`,
+          name: file.name,
+          path: filePath,
+          content: text,
+          encoding: 'UTF-8',
+          lineEnding,
+          isDirty: false,
+        };
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(newTab.id);
+        showToast('info', `Загружен файл: ${file.name}`);
+      } catch (err: any) {
+        showToast('error', `Ошибка загрузки файла ${file.name}: ${err.message}`);
+      }
+    }
+  };
+
   const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, message }]);
@@ -105,43 +177,63 @@ export default function App() {
     }, 4000);
   }, []);
 
-  // Hot-Exit Safe Session Preservation (QuotaExceeded Protection)
+  // Hot-Exit Safe Session Preservation (Debounced to prevent keystroke UI blocking)
   useEffect(() => {
-    try {
-      const lightweightTabs = tabs.map((t) => ({
-        ...t,
-        content: t.content.length > 500000 ? t.content.slice(0, 500000) : t.content,
-      }));
-      localStorage.setItem('vibepad_session', JSON.stringify(lightweightTabs));
-    } catch (e) {
-      console.warn('QuotaExceeded: Could not persist full session state to localStorage:', e);
-    }
+    const timer = setTimeout(() => {
+      try {
+        const lightweightTabs = tabs.map((t) => ({
+          ...t,
+          content: t.content.length > 500000 ? t.content.slice(0, 500000) : t.content,
+        }));
+        localStorage.setItem('vibepad_session', JSON.stringify(lightweightTabs));
+      } catch (e) {
+        console.warn('QuotaExceeded: Could not persist full session state to localStorage:', e);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, [tabs]);
 
   // Initial CLI Argument Processing
   useEffect(() => {
     let isMounted = true;
-    IPCBridge.getInitialFile().then(async (filePath) => {
-      if (!filePath || !isMounted) return;
-      try {
-        const fileData = await IPCBridge.readFile(filePath);
-        const fileName = filePath.split(/[/\\]/).pop() || filePath;
-        const newTab: FileItem = {
-          id: `tab-${Date.now()}-cli`,
-          name: fileName,
-          path: filePath,
-          content: fileData.content,
-          encoding: fileData.encoding,
-          lineEnding: fileData.lineEnding,
-          isDirty: false,
-        };
-        setTabs((prev) => [...prev, newTab]);
-        setActiveTabId(newTab.id);
-        showToast('info', `Открыт файл: ${fileName}`);
-      } catch (err: any) {
-        showToast('error', `Ошибка загрузки начального файла: ${err.message}`);
+    const loadInitialFile = async () => {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        try {
+          const filePath = await IPCBridge.getInitialFile();
+          if (filePath && isMounted) {
+            const fileData = await IPCBridge.readFile(filePath);
+            const fileName = filePath.split(/[/\\]/).pop() || filePath;
+            const newTab: FileItem = {
+              id: `tab-${Date.now()}-cli`,
+              name: fileName,
+              path: filePath,
+              content: fileData.content,
+              encoding: fileData.encoding,
+              lineEnding: fileData.lineEnding,
+              isDirty: false,
+            };
+            let targetTabId = newTab.id;
+            setTabs((prev) => {
+              const cleanPrev = prev.filter((t) => t.name !== 'welcome.log');
+              const existing = cleanPrev.find((t) => t.path === filePath);
+              if (existing) {
+                targetTabId = existing.id;
+                return cleanPrev;
+              }
+              return [newTab, ...cleanPrev];
+            });
+            setActiveTabId(targetTabId);
+            showToast('info', `Открыт файл: ${fileName}`);
+            break;
+          }
+        } catch (err: any) {
+          console.warn('[App] Initial file load retry:', err);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
-    });
+    };
+    loadInitialFile();
     return () => {
       isMounted = false;
     };
@@ -153,16 +245,49 @@ export default function App() {
   const handleUpdateContent = useCallback(
     (newContent: string) => {
       setTabs((prev) =>
-        prev.map((t) => (t.id === activeTabId ? { ...t, content: newContent, isDirty: true } : t))
+        prev.map((t) => {
+          if (t.id !== activeTabId) return t;
+          if (t.content === newContent && t.isDirty) return t;
+          return { ...t, content: newContent, isDirty: true };
+        })
       );
     },
     [activeTabId]
   );
 
+  const handleSaveAsConfirm = async (targetPath: string) => {
+    if (!activeFile || !targetPath || !targetPath.trim()) return;
+    const cleanPath = targetPath.trim();
+    const fileName = cleanPath.split(/[/\\]/).pop() || cleanPath;
+
+    setIsSaving(true);
+    try {
+      const success = await IPCBridge.writeFile(cleanPath, activeFile.content);
+      if (success) {
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === activeTabId
+              ? { ...t, name: fileName, path: cleanPath, isDirty: false }
+              : t
+          )
+        );
+        setIsSaveAsOpen(false);
+        showToast('success', `Файл сохранен как: ${fileName}`);
+      } else {
+        showToast('error', `Ошибка сохранения файла по пути: ${cleanPath}`);
+      }
+    } catch (e: any) {
+      showToast('error', `Исключение при сохранении: ${e.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveFile = async () => {
     if (!activeFile) return;
     if (activeFile.path.startsWith('Untitled-')) {
-      showToast('info', 'Для нового файла требуется указать имя файла');
+      setSaveAsInput(activeFile.name);
+      setIsSaveAsOpen(true);
       return;
     }
 
@@ -184,7 +309,7 @@ export default function App() {
     }
   };
 
-  const handleAddTab = (name?: string, content?: string) => {
+  const handleAddTab = useCallback((name?: string, content?: string) => {
     const tabNum = tabs.length + 1;
     const tabName = name || `Untitled-${tabNum}.txt`;
     const tabContent = content !== undefined ? content : '';
@@ -199,10 +324,10 @@ export default function App() {
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  };
+  }, [tabs.length]);
 
-  const handleCloseTab = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCloseTab = useCallback((id: string, e?: React.MouseEvent | Event) => {
+    if (e && 'stopPropagation' in e) e.stopPropagation();
     if (tabs.length === 1) return;
 
     const targetTab = tabs.find((t) => t.id === id);
@@ -217,9 +342,10 @@ export default function App() {
     setTabs(nextTabs);
 
     if (activeTabId === id) {
-      setActiveTabId(nextTabs[nextTabs.length - 1].id);
+      const nextActive = nextTabs[nextTabs.length - 1];
+      if (nextActive) setActiveTabId(nextActive.id);
     }
-  };
+  }, [tabs, activeTabId]);
 
   const handleRunShell = async () => {
     if (!activeFile) return;
@@ -238,6 +364,24 @@ export default function App() {
       } else if (isCmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'v') {
         e.preventDefault();
         setIsSnippetVaultOpen((prev) => !prev);
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setIsSidebarOpen((prev) => !prev);
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        handleAddTab();
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        handleCloseTab(activeTabId, e);
+      } else if (isCmdOrCtrl && e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = tabs.findIndex((t) => t.id === activeTabId);
+        if (currentIndex >= 0) {
+          const nextIndex = e.shiftKey
+            ? (currentIndex - 1 + tabs.length) % tabs.length
+            : (currentIndex + 1) % tabs.length;
+          setActiveTabId(tabs[nextIndex].id);
+        }
       } else if (isCmdOrCtrl && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
@@ -253,6 +397,9 @@ export default function App() {
       } else if (isCmdOrCtrl && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleSaveFile();
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        handleOpenFileClick();
       } else if (e.altKey && e.key.toLowerCase() === 'x') {
         e.preventDefault();
         handleRunShell();
@@ -261,7 +408,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTabId, activeFile]);
+  }, [activeTabId, activeFile, tabs, handleOpenFileClick, handleAddTab, handleCloseTab]);
 
   // Log filter application memoized to prevent expensive recalculation
   const displayedContent = useMemo(() => {
@@ -274,12 +421,28 @@ export default function App() {
   }, [filterQuery, activeFile?.content]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-vibe-bg text-vibe-text overflow-hidden select-none font-sans">
+    <div
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onDrop={handleDropFiles}
+      className="h-screen w-screen flex flex-col bg-vibe-bg text-vibe-text overflow-hidden select-none font-sans"
+    >
       {/* Top Header / Tab Bar */}
       {!isZenMode && (
         <header className="flex items-center justify-between bg-[#141720] border-b border-vibe-border px-2 py-1 select-none">
-          {/* Tabs Navigation */}
+          {/* Sidebar Toggle & Tabs Navigation */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[65%]">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`p-1.5 rounded transition ${
+                isSidebarOpen
+                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/40'
+                  : 'text-vibe-muted hover:text-slate-200 hover:bg-[#181b24]'
+              }`}
+              title="Переключить боковую панель файлов (Ctrl+B)"
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <div className="w-[1px] h-4 bg-vibe-border mx-0.5" />
             {tabs.map((tab) => {
               const isActive = tab.id === activeTabId;
               return (
@@ -303,12 +466,26 @@ export default function App() {
               );
             })}
             <button
+              onClick={handleOpenFileClick}
+              className="p-1 hover:bg-vibe-surface text-vibe-muted hover:text-indigo-400 rounded transition"
+              title="Открыть файл с диска (Ctrl+O)"
+            >
+              <FolderOpen className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => handleAddTab()}
               className="p-1 hover:bg-vibe-surface text-vibe-muted hover:text-slate-200 rounded transition"
-              title="Создать новый скратчпад"
+              title="Создать новый файл (Ctrl+N)"
             >
               <Plus className="w-4 h-4" />
             </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileInputChange}
+              multiple
+              className="hidden"
+            />
           </div>
 
           {/* Top Control Buttons & SaaS Modals Triggers */}
@@ -403,6 +580,55 @@ export default function App() {
         />
       )}
 
+      {/* Main Workspace Layout (Sidebar + Editor) */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Collapsible Left Sidebar Explorer */}
+        {isSidebarOpen && !isZenMode && (
+          <aside className="w-64 bg-[#141720] border-r border-vibe-border flex flex-col z-20 shrink-0 text-xs">
+            <div className="p-3 border-b border-vibe-border flex items-center justify-between font-semibold text-slate-300">
+              <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-vibe-muted">
+                <Folder className="w-3.5 h-3.5 text-indigo-400" /> Workspace Explorer
+              </span>
+              <button
+                onClick={() => handleAddTab()}
+                className="p-1 hover:bg-[#1f2330] rounded text-vibe-muted hover:text-slate-200"
+                title="Новый файл (Ctrl+N)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-vibe-muted px-2 py-1">Открытые вкладки</div>
+              {tabs.map((tab) => {
+                const isActive = tab.id === activeTabId;
+                return (
+                  <div
+                    key={tab.id}
+                    onClick={() => setActiveTabId(tab.id)}
+                    className={`group flex items-center justify-between px-2.5 py-1.5 rounded cursor-pointer transition ${
+                      isActive
+                        ? 'bg-indigo-600/20 text-indigo-300 font-medium border border-indigo-500/30'
+                        : 'text-slate-400 hover:bg-[#1c202c] hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="truncate">{tab.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {tab.isDirty && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                      <X
+                        className="w-3 h-3 opacity-0 group-hover:opacity-100 hover:text-rose-400 transition"
+                        onClick={(e) => handleCloseTab(tab.id, e)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        )}
+
       {/* Main Workspace */}
       <main className="flex-1 relative overflow-hidden bg-[#0f1117]">
         {isDiffMode ? (
@@ -433,6 +659,7 @@ export default function App() {
           onOpenAi={() => setIsAiOpen(true)}
         />
       </main>
+      </div>
 
       {/* Console Output Drawer */}
       {shellOutput && (
@@ -507,6 +734,7 @@ export default function App() {
       {isCommandPaletteOpen && (
         <CommandPalette
           onClose={() => setIsCommandPaletteOpen(false)}
+          onOpenFile={handleOpenFileClick}
           onTransformContent={(fn) => {
             try {
               if (activeFile) handleUpdateContent(fn(activeFile.content));
@@ -565,6 +793,53 @@ export default function App() {
           }}
           onClose={() => setIsSnippetVaultOpen(false)}
         />
+      )}
+
+      {isSaveAsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#141720] border border-vibe-border rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-vibe-border pb-3">
+              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                <Save className="w-4 h-4 text-indigo-400" /> Сохранить файл как...
+              </h3>
+              <button
+                onClick={() => setIsSaveAsOpen(false)}
+                className="text-vibe-muted hover:text-slate-200 p-1 rounded hover:bg-[#1f2330]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-vibe-muted">
+              Укажите абсолютный или относительный путь для сохранения файла на диске:
+            </p>
+            <input
+              type="text"
+              value={saveAsInput}
+              onChange={(e) => setSaveAsInput(e.target.value)}
+              placeholder="C:\Users\user\Documents\file.txt"
+              className="w-full bg-[#0a0c10] border border-vibe-border rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveAsConfirm(saveAsInput);
+                if (e.key === 'Escape') setIsSaveAsOpen(false);
+              }}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setIsSaveAsOpen(false)}
+                className="px-3 py-1.5 rounded-md text-xs bg-[#1a1d28] hover:bg-[#252938] text-slate-300 transition"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => handleSaveAsConfirm(saveAsInput)}
+                className="px-4 py-1.5 rounded-md text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/30 transition"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {isSessionExportOpen && (

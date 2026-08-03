@@ -1,3 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="vibe-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#a855f7" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded Base Glass Tile -->
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#bg-grad)" stroke="url(#vibe-grad)" stroke-width="6" filter="url(#shadow)"/>
+
+  <!-- Subtle Editor Grid lines -->
+  <path d="M96 140h320M96 196h240M96 252h280M96 308h180M96 364h320" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Code Bracket Symbol '<' -->
+  <path d="M160 216l-48 40 48 40" stroke="url(#glow-grad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Central Vibe Lightning Bolt -->
+  <path d="M280 144l-64 128h64l-32 104 96-144h-64l36-88z" fill="url(#vibe-grad)"/>
+
+  <!-- Code Bracket Symbol '>' -->
+  <path d="M352 216l48 40-48 40" stroke="url(#glow-grad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

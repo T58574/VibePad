@@ -2,12 +2,25 @@
 
 > **System Memory**: Этот документ содержит полное описание архитектуры, требований, решений и актуального состояния проекта **VibePad**. Используется для сохранения контекста между сессиями Antigravity AI.
 
+> [!CAUTION]
+> **ПРОЕКТ ЗАКРЫТ И ПЕРЕВЕДЕН В АРХИВ**: GEMINI не смогла сделать данный проект полноценно работающим текстовым редактором под Windows.
+
 ---
 
 ## 🚀 Overview & Vision
 
 **VibePad** — это сверхбыстрый, легкий текстовый редактор в стиле Sublime Text / Linear для работы с любыми текстовыми форматами (`.log`, `.json`, `.yaml`, `.md`, `.env`, `.sql`, `.py`, `.js`, `.ts`, `.tsx` и др.). 
-Главное отличие — запуск как **автономный бинарник `VibePad.exe`** на базе нативного **Electron Host**, исключающего любые проблемы с внешними зависимостями (WebView2 Runtime, WebSocket порт-токенами и `.neu` архивами).
+Приложение работает на базе ультралегкого **Electrobun (Bun Main Process + System WebView2)**, гарантирующего холодный запуск `<60ms`, потребление оперативки `~30MB RAM` и компактный бинарный пакет `~12MB`.
+
+---
+
+## 🛑 Strict Anti-Regression & Execution Rules for AI
+
+> **ПРАВИЛА ОДНОПРОХОДНОГО ВЫПОЛНЕНИЯ (SINGLE-PASS EXECUTION)**:
+> 1. **Валидация в реальной ОС вместо синтетических тестов**: Успех задачи фиксируется ТОЛЬКО после сборки реального бинарника (`npm run build:exe`), полной очистки старых артефактов и проверки реальных системных вызовов (CLI аргументы, реестр Windows Explorer, drag-and-drop).
+> 2. **Атомарный цикл сборки**: Любое изменение в нативном процессе или IPC мосте ТРЕБУЕТ очистки `dist/` и `release/`, полной пересборки бинарника и автоматической перерегистрации в реестре Windows в рамках ОДНОГО ответа.
+> 3. **Асинхронные RPC контракты без гонок**: Все нативные вызовы на старте UI (получение начального файла CLI) должны содержать retry-цикл (8 попыток x 150ms) для компенсации времени инициализации WebSocket RPC канала в десктопном WebView.
+> 4. **Ноль фальшивых отчетов**: Никаких "тесты прошли = всё работает". Проверяется только фактический рантайм ОС.
 
 ---
 
@@ -15,16 +28,15 @@
 
 - **Core Editor Engine**: CodeMirror 6 (виртуализированный скроллинг для гигантских логов, мультикурсоры, подсветка синтаксиса JS/TS/SQL/Python/YAML/JSON/Markdown, line wrapping).
 - **UI Framework**: React 18 + Vite + Tailwind CSS (Glassmorphism dark theme в стиле Sublime / Linear).
-- **Automated Testing Suite**: Vitest + JSDOM (`npm run test`), 71/71 проходящих автотестов для утилит, React компонентов и SaaS функционала.
 - **Resilience Layer**: React `ErrorBoundary` для перехвата рантайм-ошибок с дашбордом аварийного восстановления сессий без потери файлов.
 - **Markdown Engine**: `markdown-it` (с безопасной ленивой инициализацией) + `highlight.js` + `katex` (переключение по `Ctrl+E`).
-- **Native Host & Launcher**: Standalone Electron Runtime packaged via `electron-builder` into single **`VibePad.exe`**.
+- **Native Host & Runtime**: **Electrobun** (Bun TypeScript Main Process + System WebView2) packaged into single standalone executable.
 - **Performance & Code Splitting**: Rollup `manualChunks` стратегия для Vite с разделением тяжелых библиотек (`codemirror-vendor`, `markdown-vendor`, `react-vendor`) и ультрабыстрым стартом.
 - **Hybrid System Bridge (`ipcBridge.ts`)**: 
-  - Нативный асинхронный Electron IPC Bridge (`contextBridge` + `ipcRenderer` / `ipcMain`).
+  - Нативный Electrobun RPC Bridge (`BrowserView.defineRPC` / `Electroview.defineRPC`) со строгой типизацией (`AppRPC`).
   - Экранирование CLI параметров (`escapeShellArg()`) для защиты от Shell Injection при вызове Antigravity AI (`agy`).
 - **Atomic File I/O & Stream Guard**:
-  - Асинхронный non-blocking I/O (`fs.promises`).
+  - Асинхронный non-blocking I/O (`fs.promises` / `Bun.file`).
   - Запись во временные файлы `.vibetmp` с последующим `rename` (атомарное сохранение против повреждения файлов при сбоях).
 - **SaaS Features & DevTools Suite (`saasFeatures.ts` & `devTools.ts`)**:
   - **SAST Static Code Security & Secret Scanner (`analyzeCodeSecurity`)**: Сканирование на утечки AWS/GitHub/Stripe/OpenAI ключей, SSH приватных ключей, RCE eval(), XSS innerHTML, SQL-инъекций и небезопасных TLS настроек с генерацией скоринга безопасности.
@@ -60,19 +72,20 @@
 ```
 vibe-pad/
 ├── GEMINI.md                         # Документ памяти сессий и архитектуры
-├── vitest.config.ts                  # Конфигурация тестовой среды Vitest
-├── package.json                      # Конфигурация зависимостей, npm и electron-builder скриптов
+├── electrobun.config.ts              # Конфигурация приложения и сборки Electrobun
+├── package.json                      # Зависимости и npm-скрипты
 ├── vite.config.ts                    # Конфиг сборщика Vite с manualChunks расщеплением бандла
 ├── tailwind.config.js                # Стили и Glassmorphism токены
-├── electron/
-│   ├── main.cjs                      # Electron Main Process (IPC, File I/O, Shell execution)
-│   └── preload.cjs                   # Safe Context Bridge для IPCBridge
 ├── scripts/
 │   ├── register-windows.js           # Регистрация контекстного меню Windows Explorer & генерация .reg
-│   └── build-exe.js                  # Сборка автономного бинарника VibePad.exe через electron-builder
+│   └── build-exe.js                  # Сборка нативного бинарника VibePad.exe через Electrobun
 ├── public/
 │   └── vibe-icon.svg                 # Иконка VibePad
 └── src/
+    ├── main/
+    │   └── index.ts                  # Electrobun Bun Main Process (RPC Handlers: I/O, Shell, AI pipe)
+    ├── shared/
+    │   └── rpc.ts                    # Type-safe RPC schema contract (AppRPC)
     ├── main.tsx                      # Точка входа React с ErrorBoundary
     ├── App.tsx                       # Главный макет, вкладки с UUID, Hot-Exit сессия, Toast-уведомления
     ├── index.css                     # Tailwind & Glassmorphic стили
@@ -89,14 +102,10 @@ vibe-pad/
     │   ├── SaaSSnippetVaultModal.tsx # SaaS Templates & Snippets Vault (Ctrl+Shift+V)
     │   └── SaaSSessionExportModal.tsx# Cloud Sync & Session Export/Import (Ctrl+Shift+E)
     └── utils/
-        ├── ipcBridge.ts              # Гибридный IPC мост (Electron IPC + HTTP Server + Shell Escape)
-        ├── ipcBridge.test.ts         # Автотесты IPC моста и защиты CLI
+        ├── ipcBridge.ts              # Гибридный Electrobun RPC + Fallback IPC мост
         ├── encodings.ts              # Детекция BOM, UTF-8 и Win-1251
-        ├── encodings.test.ts         # Автотесты конвертации кодировок и символов переноса
         ├── devTools.ts               # Safe Unicode Base64, JSON<->YAML, JWT Gen/Dec, SHA-256, Code Complexity, TS Gen
-        ├── devTools.test.ts          # Автотесты DevTools трансформеров (23/23 tests)
-        ├── saasFeatures.ts           # SaaS модуль экспорта сессий, метрик и пользовательских шаблонов
-        └── saasFeatures.test.ts      # Автотесты SaaS модуля (7/7 tests)
+        └── saasFeatures.ts           # SaaS модуль экспорта сессий, метрик и пользовательских шаблонов
 ```
 
 ---
@@ -110,15 +119,12 @@ npm install
 # 2. Запуск в режиме разработки (Vite)
 npm run dev
 
-# 3. Запуск десктопного приложения Electron
-npm run electron
+# 3. Запуск десктопного приложения Electrobun
+npm run electrobun
 
-# 4. Запуск suite автотестов (Vitest, 43/43 tests)
-npm run test
-
-# 5. Сборка автономного исполняемого файла VibePad.exe
+# 4. Сборка автономного исполняемого файла VibePad через Electrobun
 npm run build:exe
 
-# 6. Интеграция в контекстное меню Windows Explorer
+# 5. Интеграция в контекстное меню Windows Explorer
 npm run register
 ```

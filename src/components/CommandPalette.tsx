@@ -4,6 +4,7 @@ import { DevTools } from '../utils/devTools';
 
 interface CommandPaletteProps {
   onClose: () => void;
+  onOpenFile?: () => void;
   onTransformContent: (transformer: (content: string) => string) => void;
   onToggleMarkdown: () => void;
   onToggleDiff: () => void;
@@ -15,6 +16,7 @@ interface CommandPaletteProps {
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onClose,
+  onOpenFile,
   onTransformContent,
   onToggleMarkdown,
   onToggleDiff,
@@ -27,6 +29,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const actions = [
+    ...(onOpenFile ? [{ id: 'open-file', name: 'Open File from Disk (Ctrl+O)', icon: FileText, action: onOpenFile }] : []),
     { id: 'saas-analytics', name: 'Open Vibe Productivity Dashboard (Ctrl+Shift+S)', icon: Activity, action: onOpenProductivity },
     { id: 'saas-snippets', name: 'Open SaaS Snippet Vault & Templates (Ctrl+Shift+V)', icon: Layers, action: onOpenSnippetVault },
     { id: 'saas-session', name: 'Cloud Sync & Session Export/Import', icon: Share2, action: onOpenSessionExport },

@@ -3,30 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "main": "electron/main.cjs",
+  "main": "src/main/index.ts",
   "scripts": {
     "dev": "npx vite",
-    "electron": "npx vite build && npx electron .",
+    "electrobun": "electrobun dev",
+    "electron": "electrobun dev",
     "build": "npx vite build",
-    "build:exe": "npx vite build && node scripts/build-exe.js",
-    "register": "node scripts/register-windows.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "build": {
-    "appId": "com.vibepad.app",
-    "productName": "VibePad",
-    "files": [
-      "dist/**/*",
-      "electron/**/*"
-    ],
-    "directories": {
-      "output": "release"
-    },
-    "win": {
-      "target": "portable",
-      "icon": "public/vibe-icon.svg"
-    }
+    "build:exe": "node scripts/build-exe.js",
+    "build:all": "node scripts/build-exe.js && node scripts/register-windows.js",
+    "register": "node scripts/register-windows.js"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.0",
@@ -41,8 +26,6 @@
     "@codemirror/search": "^6.5.6",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.29.1",
-    "@neutralinojs/lib": "^6.9.0",
-    "@webviewjs/webview": "^0.2.1",
     "clsx": "^2.1.1",
     "diff": "^5.2.0",
     "highlight.js": "^11.9.0",
@@ -55,8 +38,6 @@
     "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^7.0.0",
-    "@testing-library/react": "^16.3.2",
     "@types/diff": "^5.2.1",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.1.0",
@@ -64,13 +45,10 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
-    "electron": "^43.2.0",
-    "electron-builder": "^26.15.3",
-    "jsdom": "^30.0.1",
+    "electrobun": "^1.18.1",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.9",
     "typescript": "^5.5.4",
-    "vite": "^5.4.0",
-    "vitest": "^4.1.10"
+    "vite": "^5.4.0"
   }
 }

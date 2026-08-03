@@ -1,3 +1,6 @@
+import { Electroview } from 'electrobun/view';
+import type { AppRPC } from '../shared/rpc';
+
 export interface FileItem {
   id: string;
   name: string;
@@ -6,6 +9,23 @@ export interface FileItem {
   encoding: string;
   lineEnding: 'CRLF' | 'LF';
   isDirty?: boolean;
+}
+
+let electroviewInstance: any = null;
+
+function getElectroview(): any {
+  if (typeof window === 'undefined') return null;
+  if (!electroviewInstance) {
+    try {
+      const rpc = Electroview.defineRPC<AppRPC>({
+        handlers: { requests: {}, messages: {} },
+      });
+      electroviewInstance = new Electroview({ rpc });
+    } catch (e) {
+      console.warn('[IPCBridge] Failed to init Electroview RPC client:', e);
+    }
+  }
+  return electroviewInstance;
 }
 
 export class IPCBridge {
@@ -26,14 +46,25 @@ export class IPCBridge {
 
   /**
    * Read file content with hybrid fallback strategy:
-   * 1. Electron Native IPC
-   * 2. Neutralino native API
-   * 3. Node HTTP bridge API
-   * 4. Fallback demo log content
+   * 1. Electrobun RPC
+   * 2. Electron Native IPC
+   * 3. Neutralino native API
+   * 4. Node HTTP bridge API
+   * 5. Fallback demo log content
    */
   static async readFile(filePath: string): Promise<{ content: string; encoding: string; lineEnding: 'CRLF' | 'LF' }> {
     if (!filePath || filePath.trim() === '') {
       throw new Error('File path cannot be empty');
+    }
+
+    // Attempt 0: Electrobun RPC
+    try {
+      const ev = getElectroview();
+      if (ev && ev.rpc) {
+        return await ev.rpc.request.readFile({ path: filePath });
+      }
+    } catch (err: any) {
+      console.warn('[IPCBridge] Electrobun RPC read failed:', err);
     }
 
     // Attempt 1: Electron Native IPC
@@ -74,7 +105,7 @@ export class IPCBridge {
     // Fallback: Default demo content
     const content = `[${new Date().toISOString()}] [INFO] VibePad Editor initialized.
 [INFO] Direct Disk Read unavailable for path: ${filePath}.
-[TIP] Ensure Electron host or Node bridge is active.`;
+[TIP] Ensure Electrobun host or Node bridge is active.`;
     return { content, encoding: 'UTF-8', lineEnding: 'LF' };
   }
 
@@ -85,6 +116,16 @@ export class IPCBridge {
     if (!filePath || filePath.startsWith('Untitled-')) {
       console.warn('[IPCBridge] Cannot save scratchpad without a valid system file path');
       return false;
+    }
+
+    // Attempt 0: Electrobun RPC
+    try {
+      const ev = getElectroview();
+      if (ev && ev.rpc) {
+        return await ev.rpc.request.writeFile({ path: filePath, content });
+      }
+    } catch (err) {
+      console.warn('[IPCBridge] Electrobun RPC write failed:', err);
     }
 
     // Attempt 1: Electron Native IPC
@@ -125,6 +166,14 @@ export class IPCBridge {
    * Get initial file passed via CLI arguments
    */
   static async getInitialFile(): Promise<string | null> {
+    // Attempt 0: Electrobun RPC
+    try {
+      const ev = getElectroview();
+      if (ev && ev.rpc) {
+        return await ev.rpc.request.getInitialFile();
+      }
+    } catch (e) {}
+
     // Attempt 1: Electron Native IPC
     try {
       if (this.electron) {
@@ -163,6 +212,10 @@ export class IPCBridge {
     if (!cmd || !cmd.trim()) return 'No command provided.';
 
     try {
+      const ev = getElectroview();
+      if (ev && ev.rpc) {
+        return await ev.rpc.request.runShell({ cmd });
+      }
       if (this.electron) {
         return await this.electron.runShell(cmd);
       }
@@ -186,6 +239,10 @@ export class IPCBridge {
     const safeSelection = selection ? selection.trim() : '';
 
     try {
+      const ev = getElectroview();
+      if (ev && ev.rpc) {
+        return await ev.rpc.request.pipeAntigravity({ prompt, selection });
+      }
       if (this.electron) {
         return await this.electron.pipeAntigravity(prompt, selection);
       }
