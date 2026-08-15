@@ -816,7 +816,7 @@ export default function App() {
               type="text"
               value={saveAsInput}
               onChange={(e) => setSaveAsInput(e.target.value)}
-              placeholder="C:\Users\user\Documents\file.txt"
+              placeholder="C:\path\to\document.txt"
               className="w-full bg-[#0a0c10] border border-vibe-border rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
               autoFocus
               onKeyDown={(e) => {

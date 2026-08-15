@@ -36,3 +36,7 @@ Desktop.ini
 
 # Neutralino temporary build state
 neutralino.config.json.bak
+
+*.exe
+build/
+dist/
